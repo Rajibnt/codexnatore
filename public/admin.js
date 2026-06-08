@@ -20,6 +20,15 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
@@ -162,7 +171,16 @@ async function api(path, options = {}) {
     headers: { "Content-Type": "application/json" },
     ...options
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) {
+    const text = await response.text();
+    try {
+      const json = JSON.parse(text);
+      throw new Error(json.error || text);
+    } catch (error) {
+      if (error instanceof SyntaxError) throw new Error(text);
+      throw error;
+    }
+  }
   return response.json();
 }
 
@@ -366,12 +384,12 @@ async function importRssFeed() {
     });
     await load();
     const importedList = result.imported
-      .map((item) => `<li>${item.title} (${item.status})</li>`)
+      .map((item) => `<li>${escapeHtml(item.title)} (${escapeHtml(item.status)})</li>`)
       .join("");
     const skipped = result.skipped?.length ? ` | skipped: ${result.skipped.length}` : "";
     setRssStatus(`Imported: ${result.imported.length}${skipped}<ul>${importedList}</ul>`, "ok");
   } catch (error) {
-    setRssStatus("RSS import ব্যর্থ হয়েছে। URL/feed permission পরীক্ষা করুন।", "error");
+    setRssStatus(escapeHtml(error.message || "RSS import ব্যর্থ হয়েছে। URL/feed permission পরীক্ষা করুন।"), "error");
   }
 }
 

@@ -857,7 +857,7 @@ function adminPage(data) {
   })}
 <body class="admin-page">
   ${body}
-  <script src="/admin.js?v=20260608-uploadfix2" defer></script>
+  <script src="/admin.js?v=20260608-rssfix" defer></script>
 </body>
 </html>`;
 }
@@ -1135,15 +1135,28 @@ async function importRssFeed(data, options = {}) {
       "User-Agent": `${safeFilePart(data.settings.brandDomain || "newscms")} RSS Importer`
     }
   });
-  if (!response.ok) {
-    return { error: `RSS fetch failed with status ${response.status}.`, status: 502 };
-  }
   const xml = await response.text();
+  if (!response.ok) {
+    const blocked = /just a moment|cloudflare|cf-browser-verification|challenge/i.test(xml);
+    return {
+      error: blocked
+        ? `RSS source returned ${response.status} and is blocking automated feed access, likely Cloudflare. Use an allowed/licensed feed URL or request feed access from the publisher.`
+        : `RSS fetch failed with status ${response.status}.`,
+      status: 502
+    };
+  }
+  if (!/<(rss|feed|item|entry)\b/i.test(xml)) {
+    return { error: "The URL did not return a valid RSS/Atom feed.", status: 415 };
+  }
+  const items = splitRssItems(xml);
+  if (!items.length) {
+    return { error: "No RSS items found in this feed.", status: 422 };
+  }
   const seen = new Set(data.articles.map((article) => article.source?.url || article.slug));
   const imported = [];
   const skipped = [];
 
-  for (const item of splitRssItems(xml).slice(0, limit * 2)) {
+  for (const item of items.slice(0, limit * 2)) {
     if (imported.length >= limit) break;
     const title = xmlTag(item, "title");
     const link = xmlTag(item, "link") || xmlAttr(item, "link", "href");
