@@ -1,0 +1,21 @@
+{
+  "name": "subarno-news-cms",
+  "version": "1.0.0",
+  "description": "Server-rendered Bangla news portal with a lightweight CMS and SEO routes.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "bangla-news",
+    "cms",
+    "seo",
+    "news-portal"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  }
+}
