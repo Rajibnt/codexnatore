@@ -717,7 +717,7 @@ function adminPage(data) {
         <div class="upload-widget">
           <input id="imageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
           <button type="button" id="uploadImageButton">এক ক্লিকে ছবি আপলোড</button>
-          <span id="uploadStatus">Auto 900x520px JPG, সর্বোচ্চ 300KB</span>
+          <span id="uploadStatus">Auto 900x520px, সর্বোচ্চ 300KB</span>
           <img id="imagePreview" alt="ছবির প্রিভিউ" hidden>
         </div>
         <label>ছবির alt text<input id="imageAlt"></label>
@@ -817,7 +817,7 @@ function adminPage(data) {
   })}
 <body class="admin-page">
   ${body}
-  <script src="/admin.js?v=20260608-uploadfix" defer></script>
+  <script src="/admin.js?v=20260608-uploadfix2" defer></script>
 </body>
 </html>`;
 }

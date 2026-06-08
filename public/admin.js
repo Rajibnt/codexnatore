@@ -203,9 +203,22 @@ function loadImage(dataUrl) {
   });
 }
 
-function canvasToBlob(canvas, quality) {
+async function decodeImageFile(file) {
+  if ("createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch (error) {
+      // Fall back to FileReader + Image below.
+    }
+  }
+
+  const dataUrl = await readFileAsDataUrl(file);
+  return loadImage(dataUrl);
+}
+
+function canvasToBlob(canvas, type, quality) {
   return new Promise((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", quality);
+    canvas.toBlob(resolve, type, quality);
   });
 }
 
@@ -213,27 +226,31 @@ function drawCoverImage(context, image, width, height) {
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, width, height);
 
-  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
-  const drawWidth = Math.round(image.naturalWidth * scale);
-  const drawHeight = Math.round(image.naturalHeight * scale);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.max(width / sourceWidth, height / sourceHeight);
+  const drawWidth = Math.round(sourceWidth * scale);
+  const drawHeight = Math.round(sourceHeight * scale);
   const drawX = Math.round((width - drawWidth) / 2);
   const drawY = Math.round((height - drawHeight) / 2);
   context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
 }
 
 async function compressedBlobFromCanvas(sourceCanvas) {
-  let bestBlob = null;
-  for (let quality = 0.88; quality >= 0.04; quality -= 0.04) {
-    const blob = await canvasToBlob(sourceCanvas, Number(quality.toFixed(2)));
-    if (blob && (!bestBlob || blob.size < bestBlob.size)) bestBlob = blob;
-    if (blob && blob.size <= TARGET_UPLOAD_BYTES) return blob;
+  let best = null;
+  for (const type of ["image/jpeg", "image/webp"]) {
+    for (let quality = 0.88; quality >= 0.04; quality -= 0.04) {
+      const blob = await canvasToBlob(sourceCanvas, type, Number(quality.toFixed(2)));
+      if (!blob) continue;
+      if (!best || blob.size < best.blob.size) best = { blob, type };
+      if (blob.size <= TARGET_UPLOAD_BYTES) return { blob, type };
+    }
   }
-  return bestBlob;
+  return best;
 }
 
 async function normalizeImageFile(file) {
-  const dataUrl = await readFileAsDataUrl(file);
-  const source = await loadImage(dataUrl);
+  const source = await decodeImageFile(file);
   const canvas = document.createElement("canvas");
   canvas.width = UPLOAD_WIDTH;
   canvas.height = UPLOAD_HEIGHT;
@@ -241,9 +258,9 @@ async function normalizeImageFile(file) {
   const context = canvas.getContext("2d");
   drawCoverImage(context, source, UPLOAD_WIDTH, UPLOAD_HEIGHT);
 
-  let blob = await compressedBlobFromCanvas(canvas);
+  let output = await compressedBlobFromCanvas(canvas);
 
-  if (!blob || blob.size > MAX_UPLOAD_BYTES) {
+  if (!output || output.blob.size > MAX_UPLOAD_BYTES) {
     const detailScales = [0.82, 0.68, 0.54, 0.42, 0.32, 0.24];
     for (const scale of detailScales) {
       const lowCanvas = document.createElement("canvas");
@@ -259,21 +276,23 @@ async function normalizeImageFile(file) {
       context.imageSmoothingQuality = "high";
       context.drawImage(lowCanvas, 0, 0, UPLOAD_WIDTH, UPLOAD_HEIGHT);
 
-      blob = await compressedBlobFromCanvas(canvas);
-      if (blob && blob.size <= MAX_UPLOAD_BYTES) break;
+      output = await compressedBlobFromCanvas(canvas);
+      if (output && output.blob.size <= MAX_UPLOAD_BYTES) break;
     }
   }
 
-  if (!blob || blob.size > MAX_UPLOAD_BYTES) {
+  if (!output || output.blob.size > MAX_UPLOAD_BYTES) {
     throw new Error("Image could not be compressed under 300KB.");
   }
 
+  const blob = output.blob;
+  const ext = output.type === "image/webp" ? "webp" : "jpg";
   const compressedDataUrl = await readFileAsDataUrl(blob);
   return {
     data: compressedDataUrl.split(",")[1] || "",
-    name: `${file.name.replace(/\.[^.]+$/, "")}-900x520.jpg`,
+    name: `${file.name.replace(/\.[^.]+$/, "")}-900x520.${ext}`,
     size: blob.size,
-    type: "image/jpeg",
+    type: output.type,
     width: UPLOAD_WIDTH,
     height: UPLOAD_HEIGHT
   };
@@ -376,7 +395,7 @@ function fillArticle(article) {
   $("#image").value = article?.image || "/assets/news-economy.png";
   $("#imageAlt").value = article?.imageAlt || "";
   updateImagePreview($("#image").value);
-  setUploadStatus("Auto 900x520px JPG, সর্বোচ্চ 300KB", "");
+  setUploadStatus("Auto 900x520px, সর্বোচ্চ 300KB", "");
   $("#seoTitle").value = seo.title || "";
   $("#seoDescription").value = seo.description || "";
   $("#focusKeyword").value = seo.focusKeyword || "";
@@ -447,7 +466,7 @@ $("#title").addEventListener("input", () => {
 
 $("#image").addEventListener("input", () => {
   updateImagePreview($("#image").value.trim());
-  setUploadStatus("Auto 900x520px JPG, সর্বোচ্চ 300KB", "");
+  setUploadStatus("Auto 900x520px, সর্বোচ্চ 300KB", "");
   renderSeoScore();
 });
 
