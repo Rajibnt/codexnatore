@@ -7,6 +7,7 @@ let state = {
 const UPLOAD_WIDTH = 900;
 const UPLOAD_HEIGHT = 520;
 const MAX_UPLOAD_BYTES = 300 * 1024;
+const TARGET_UPLOAD_BYTES = 285 * 1024;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -227,15 +228,18 @@ async function normalizeImageFile(file) {
   context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
 
   let blob = null;
-  let quality = 0.82;
-  while (quality >= 0.38) {
+  let bestBlob = null;
+  let quality = 0.86;
+  while (quality >= 0.14) {
     blob = await canvasToBlob(canvas, quality);
-    if (blob && blob.size <= MAX_UPLOAD_BYTES) break;
-    quality -= 0.08;
+    if (blob && (!bestBlob || blob.size < bestBlob.size)) bestBlob = blob;
+    if (blob && blob.size <= TARGET_UPLOAD_BYTES) break;
+    quality -= 0.06;
   }
 
+  if (!blob || blob.size > MAX_UPLOAD_BYTES) blob = bestBlob;
   if (!blob || blob.size > MAX_UPLOAD_BYTES) {
-    throw new Error("Image could not be compressed under 300KB.");
+    throw new Error("Image could not be compressed under 300KB while keeping 900x520px.");
   }
 
   const compressedDataUrl = await readFileAsDataUrl(blob);
@@ -256,7 +260,7 @@ async function uploadImageFile(file) {
     return;
   }
 
-  setUploadStatus("ছবি 900x520px ও 300KB-এর নিচে আনা হচ্ছে...", "");
+  setUploadStatus("ছবি 900x520px করে 300KB-এর নিচে নামানো হচ্ছে...", "");
   try {
     const processed = await normalizeImageFile(file);
     setUploadStatus(`কমপ্রেস হয়েছে: ${(processed.size / 1024).toFixed(0)}KB, আপলোড হচ্ছে...`, "");
@@ -278,7 +282,7 @@ async function uploadImageFile(file) {
     setUploadStatus(`আপলোড সম্পন্ন: ${uploaded.width}x${uploaded.height}px, ${(uploaded.size / 1024).toFixed(0)}KB`, "ok");
     renderSeoScore();
   } catch (error) {
-    setUploadStatus("ছবি 300KB-এর নিচে আনা যায়নি, অন্য ছবি দিন", "error");
+    setUploadStatus("এই ছবি খুব জটিল, কম noise/কম details ছবি দিন", "error");
   }
 }
 
@@ -417,10 +421,14 @@ $("#title").addEventListener("input", () => {
 
 $("#image").addEventListener("input", () => {
   updateImagePreview($("#image").value.trim());
+  setUploadStatus("Auto 900x520px JPG, সর্বোচ্চ 300KB", "");
   renderSeoScore();
 });
 
-$("#uploadImageButton").addEventListener("click", () => $("#imageUpload").click());
+$("#uploadImageButton").addEventListener("click", () => {
+  setUploadStatus("ছবি নির্বাচন করুন...", "");
+  $("#imageUpload").click();
+});
 $("#imageUpload").addEventListener("change", (event) => {
   uploadImageFile(event.target.files?.[0]);
   event.target.value = "";
