@@ -16,7 +16,7 @@ The `/admin` editor includes per-post SEO controls:
 
 ## CMS Image Upload
 
-The post editor includes a one-click image upload control. Uploaded local images are saved under:
+The post editor includes a one-click image upload control. Every selected image is automatically center-cropped/resized to `900x520px`, converted to JPG, and compressed below `300KB` before upload. Uploaded local images are saved under:
 
 ```text
 public/assets/uploads

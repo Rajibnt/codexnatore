@@ -8,6 +8,9 @@ const ROOT = __dirname;
 const DATA_PATH = path.join(ROOT, "data", "content.json");
 const PUBLIC_DIR = path.join(ROOT, "public");
 const UPLOAD_DIR = path.join(PUBLIC_DIR, "assets", "uploads");
+const MAX_UPLOAD_BYTES = 300 * 1024;
+const UPLOAD_IMAGE_WIDTH = 900;
+const UPLOAD_IMAGE_HEIGHT = 520;
 const TZ = "Asia/Dhaka";
 
 const MIME = {
@@ -714,7 +717,7 @@ function adminPage(data) {
         <div class="upload-widget">
           <input id="imageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
           <button type="button" id="uploadImageButton">এক ক্লিকে ছবি আপলোড</button>
-          <span id="uploadStatus">JPG, PNG, WEBP বা GIF; সর্বোচ্চ ৩MB</span>
+          <span id="uploadStatus">Auto 900x520px JPG, সর্বোচ্চ 300KB</span>
           <img id="imagePreview" alt="ছবির প্রিভিউ" hidden>
         </div>
         <label>ছবির alt text<input id="imageAlt"></label>
@@ -1021,8 +1024,8 @@ function saveUploadedImage(payload = {}) {
   }
 
   const buffer = Buffer.from(base64, "base64");
-  if (!buffer.length || buffer.length > 3 * 1024 * 1024) {
-    return { error: "Image must be 3MB or smaller.", status: 413 };
+  if (!buffer.length || buffer.length > MAX_UPLOAD_BYTES) {
+    return { error: "Image must be 300KB or smaller after compression.", status: 413 };
   }
 
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -1035,7 +1038,9 @@ function saveUploadedImage(payload = {}) {
     url: `/assets/uploads/${fileName}`,
     name: fileName,
     size: buffer.length,
-    type
+    type,
+    width: Number(payload.width || UPLOAD_IMAGE_WIDTH),
+    height: Number(payload.height || UPLOAD_IMAGE_HEIGHT)
   };
 }
 

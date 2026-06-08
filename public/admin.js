@@ -4,6 +4,10 @@ let state = {
   settings: {}
 };
 
+const UPLOAD_WIDTH = 900;
+const UPLOAD_HEIGHT = 520;
+const MAX_UPLOAD_BYTES = 300 * 1024;
+
 const $ = (selector) => document.querySelector(selector);
 
 function slugify(value) {
@@ -180,13 +184,69 @@ function updateImagePreview(url) {
   }
 }
 
-function readFileAsBase64(file) {
+function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(reader.error || new Error("File read failed"));
     reader.readAsDataURL(file);
   });
+}
+
+function loadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Image load failed"));
+    image.src = dataUrl;
+  });
+}
+
+function canvasToBlob(canvas, quality) {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, "image/jpeg", quality);
+  });
+}
+
+async function normalizeImageFile(file) {
+  const dataUrl = await readFileAsDataUrl(file);
+  const source = await loadImage(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = UPLOAD_WIDTH;
+  canvas.height = UPLOAD_HEIGHT;
+
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, UPLOAD_WIDTH, UPLOAD_HEIGHT);
+
+  const scale = Math.max(UPLOAD_WIDTH / source.naturalWidth, UPLOAD_HEIGHT / source.naturalHeight);
+  const drawWidth = Math.round(source.naturalWidth * scale);
+  const drawHeight = Math.round(source.naturalHeight * scale);
+  const drawX = Math.round((UPLOAD_WIDTH - drawWidth) / 2);
+  const drawY = Math.round((UPLOAD_HEIGHT - drawHeight) / 2);
+  context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
+
+  let blob = null;
+  let quality = 0.82;
+  while (quality >= 0.38) {
+    blob = await canvasToBlob(canvas, quality);
+    if (blob && blob.size <= MAX_UPLOAD_BYTES) break;
+    quality -= 0.08;
+  }
+
+  if (!blob || blob.size > MAX_UPLOAD_BYTES) {
+    throw new Error("Image could not be compressed under 300KB.");
+  }
+
+  const compressedDataUrl = await readFileAsDataUrl(blob);
+  return {
+    data: compressedDataUrl.split(",")[1] || "",
+    name: `${file.name.replace(/\.[^.]+$/, "")}-900x520.jpg`,
+    size: blob.size,
+    type: "image/jpeg",
+    width: UPLOAD_WIDTH,
+    height: UPLOAD_HEIGHT
+  };
 }
 
 async function uploadImageFile(file) {
@@ -195,20 +255,19 @@ async function uploadImageFile(file) {
     setUploadStatus("শুধু JPG, PNG, WEBP বা GIF আপলোড করা যাবে", "error");
     return;
   }
-  if (file.size > 3 * 1024 * 1024) {
-    setUploadStatus("ছবি ৩MB-এর কম হতে হবে", "error");
-    return;
-  }
 
-  setUploadStatus("আপলোড হচ্ছে...", "");
+  setUploadStatus("ছবি 900x520px ও 300KB-এর নিচে আনা হচ্ছে...", "");
   try {
-    const data = await readFileAsBase64(file);
+    const processed = await normalizeImageFile(file);
+    setUploadStatus(`কমপ্রেস হয়েছে: ${(processed.size / 1024).toFixed(0)}KB, আপলোড হচ্ছে...`, "");
     const uploaded = await api("/api/uploads", {
       method: "POST",
       body: JSON.stringify({
-        name: file.name,
-        type: file.type,
-        data
+        name: processed.name,
+        type: processed.type,
+        data: processed.data,
+        width: processed.width,
+        height: processed.height
       })
     });
     $("#image").value = uploaded.url;
@@ -216,10 +275,10 @@ async function uploadImageFile(file) {
     else $("#ogImage").value = uploaded.url;
     if (!$("#imageAlt").value.trim()) $("#imageAlt").value = $("#title").value || file.name.replace(/\.[^.]+$/, "");
     updateImagePreview(uploaded.url);
-    setUploadStatus(`আপলোড সম্পন্ন: ${uploaded.name}`, "ok");
+    setUploadStatus(`আপলোড সম্পন্ন: ${uploaded.width}x${uploaded.height}px, ${(uploaded.size / 1024).toFixed(0)}KB`, "ok");
     renderSeoScore();
   } catch (error) {
-    setUploadStatus("আপলোড ব্যর্থ হয়েছে", "error");
+    setUploadStatus("ছবি 300KB-এর নিচে আনা যায়নি, অন্য ছবি দিন", "error");
   }
 }
 
@@ -287,7 +346,7 @@ function fillArticle(article) {
   $("#image").value = article?.image || "/assets/news-economy.png";
   $("#imageAlt").value = article?.imageAlt || "";
   updateImagePreview($("#image").value);
-  setUploadStatus("JPG, PNG, WEBP বা GIF; সর্বোচ্চ ৩MB", "");
+  setUploadStatus("Auto 900x520px JPG, সর্বোচ্চ 300KB", "");
   $("#seoTitle").value = seo.title || "";
   $("#seoDescription").value = seo.description || "";
   $("#focusKeyword").value = seo.focusKeyword || "";
