@@ -1235,6 +1235,49 @@ select {
   background: #5f6b66;
 }
 
+.upload-widget {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  background: #f7faf8;
+  border: 1px dashed #b9d8c4;
+}
+
+.upload-widget button {
+  border: 0;
+  background: var(--green);
+  color: #fff;
+  padding: 8px 13px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.upload-widget span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.upload-widget span.ok {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.upload-widget span.error {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.upload-widget img {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
 .panel-toolbar {
   margin-bottom: 12px;
 }

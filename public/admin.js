@@ -161,6 +161,68 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+function setUploadStatus(message, kind = "") {
+  const status = $("#uploadStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.className = kind;
+}
+
+function updateImagePreview(url) {
+  const preview = $("#imagePreview");
+  if (!preview) return;
+  if (url) {
+    preview.src = url;
+    preview.hidden = false;
+  } else {
+    preview.removeAttribute("src");
+    preview.hidden = true;
+  }
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+    reader.onerror = () => reject(reader.error || new Error("File read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImageFile(file) {
+  if (!file) return;
+  if (!/^image\/(png|jpe?g|webp|gif)$/i.test(file.type)) {
+    setUploadStatus("শুধু JPG, PNG, WEBP বা GIF আপলোড করা যাবে", "error");
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    setUploadStatus("ছবি ৩MB-এর কম হতে হবে", "error");
+    return;
+  }
+
+  setUploadStatus("আপলোড হচ্ছে...", "");
+  try {
+    const data = await readFileAsBase64(file);
+    const uploaded = await api("/api/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        name: file.name,
+        type: file.type,
+        data
+      })
+    });
+    $("#image").value = uploaded.url;
+    if (!$("#ogImage").value.trim()) $("#ogImage").value = uploaded.url;
+    else $("#ogImage").value = uploaded.url;
+    if (!$("#imageAlt").value.trim()) $("#imageAlt").value = $("#title").value || file.name.replace(/\.[^.]+$/, "");
+    updateImagePreview(uploaded.url);
+    setUploadStatus(`আপলোড সম্পন্ন: ${uploaded.name}`, "ok");
+    renderSeoScore();
+  } catch (error) {
+    setUploadStatus("আপলোড ব্যর্থ হয়েছে", "error");
+  }
+}
+
 async function load() {
   state = await api("/api/content");
   fillOptions();
@@ -224,6 +286,8 @@ function fillArticle(article) {
   $("#tags").value = article?.tags?.join(", ") || "";
   $("#image").value = article?.image || "/assets/news-economy.png";
   $("#imageAlt").value = article?.imageAlt || "";
+  updateImagePreview($("#image").value);
+  setUploadStatus("JPG, PNG, WEBP বা GIF; সর্বোচ্চ ৩MB", "");
   $("#seoTitle").value = seo.title || "";
   $("#seoDescription").value = seo.description || "";
   $("#focusKeyword").value = seo.focusKeyword || "";
@@ -290,6 +354,17 @@ function articlePayload() {
 $("#title").addEventListener("input", () => {
   if (!$("#articleId").value) $("#slug").value = slugify($("#title").value);
   renderSeoScore();
+});
+
+$("#image").addEventListener("input", () => {
+  updateImagePreview($("#image").value.trim());
+  renderSeoScore();
+});
+
+$("#uploadImageButton").addEventListener("click", () => $("#imageUpload").click());
+$("#imageUpload").addEventListener("change", (event) => {
+  uploadImageFile(event.target.files?.[0]);
+  event.target.value = "";
 });
 
 $("#aiSeoButton").addEventListener("click", runAiSeo);

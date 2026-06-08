@@ -14,6 +14,16 @@ The `/admin` editor includes per-post SEO controls:
 - Sitemap inclusion toggle
 - One-click AI SEO helper that generates metadata from the post title, excerpt, and body
 
+## CMS Image Upload
+
+The post editor includes a one-click image upload control. Uploaded local images are saved under:
+
+```text
+public/assets/uploads
+```
+
+For Vercel deployment, commit and push uploaded local images if you want them to ship with the site. Runtime uploads on Vercel's serverless filesystem are not permanent; use Vercel Blob or another storage service for production-persistent CMS media.
+
 ## Local Run
 
 ```bash

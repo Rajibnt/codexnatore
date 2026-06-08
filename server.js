@@ -7,6 +7,7 @@ const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
 const DATA_PATH = path.join(ROOT, "data", "content.json");
 const PUBLIC_DIR = path.join(ROOT, "public");
+const UPLOAD_DIR = path.join(PUBLIC_DIR, "assets", "uploads");
 const TZ = "Asia/Dhaka";
 
 const MIME = {
@@ -58,6 +59,14 @@ function slugify(input) {
     .replace(/[^a-z0-9\u0980-\u09ff]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return ascii || `news-${Date.now()}`;
+}
+
+function safeFilePart(input) {
+  return String(input || "image")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "image";
 }
 
 function categoryName(data, slug) {
@@ -702,6 +711,12 @@ function adminPage(data) {
           <label>ট্যাগ<input id="tags" placeholder="কমা দিয়ে লিখুন"></label>
         </div>
         <label>ছবি URL<input id="image"></label>
+        <div class="upload-widget">
+          <input id="imageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          <button type="button" id="uploadImageButton">এক ক্লিকে ছবি আপলোড</button>
+          <span id="uploadStatus">JPG, PNG, WEBP বা GIF; সর্বোচ্চ ৩MB</span>
+          <img id="imagePreview" alt="ছবির প্রিভিউ" hidden>
+        </div>
         <label>ছবির alt text<input id="imageAlt"></label>
         <section class="seo-panel">
           <div class="seo-panel-head">
@@ -983,9 +998,60 @@ function normalizeArticle(input, current = {}) {
   };
 }
 
+function imageExtFromType(type) {
+  const map = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif"
+  };
+  return map[type] || "";
+}
+
+function saveUploadedImage(payload = {}) {
+  const type = String(payload.type || "").toLowerCase();
+  const ext = imageExtFromType(type);
+  if (!ext) {
+    return { error: "Only JPG, PNG, WEBP or GIF images are allowed.", status: 415 };
+  }
+
+  const base64 = String(payload.data || "").replace(/^data:image\/[a-z0-9.+-]+;base64,/i, "");
+  if (!base64) {
+    return { error: "Image data is missing.", status: 400 };
+  }
+
+  const buffer = Buffer.from(base64, "base64");
+  if (!buffer.length || buffer.length > 3 * 1024 * 1024) {
+    return { error: "Image must be 3MB or smaller.", status: 413 };
+  }
+
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const baseName = safeFilePart(path.parse(payload.name || "image").name);
+  const fileName = `${Date.now()}-${baseName}${ext}`;
+  const filePath = path.join(UPLOAD_DIR, fileName);
+  fs.writeFileSync(filePath, buffer);
+
+  return {
+    url: `/assets/uploads/${fileName}`,
+    name: fileName,
+    size: buffer.length,
+    type
+  };
+}
+
 async function handleApi(req, res, url, data) {
   if (req.method === "GET" && url.pathname === "/api/content") {
     send(res, 200, JSON.stringify(data), "application/json; charset=utf-8");
+    return true;
+  }
+  if (req.method === "POST" && url.pathname === "/api/uploads") {
+    const payload = await readJson(req);
+    const uploaded = saveUploadedImage(payload);
+    if (uploaded.error) {
+      send(res, uploaded.status || 400, JSON.stringify({ error: uploaded.error }), "application/json; charset=utf-8");
+      return true;
+    }
+    send(res, 201, JSON.stringify(uploaded), "application/json; charset=utf-8");
     return true;
   }
   if (req.method === "POST" && url.pathname === "/api/articles") {
@@ -1038,7 +1104,7 @@ async function requestHandler(req, res) {
     if (pathname.startsWith("/assets/") || pathname === "/styles.css" || pathname === "/site.js" || pathname === "/admin.js") {
       if (serveStatic(req, res, pathname)) return;
     }
-    if (pathname === "/api/content" || pathname.startsWith("/api/articles") || pathname === "/api/settings") {
+    if (pathname === "/api/content" || pathname === "/api/uploads" || pathname.startsWith("/api/articles") || pathname === "/api/settings") {
       if (await handleApi(req, res, url, data)) return;
     }
     if (req.method !== "GET") {
