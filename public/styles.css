@@ -1155,6 +1155,99 @@ select {
   font-size: 28px;
 }
 
+.rss-import-panel {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
+.rss-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rss-head p,
+.rss-head h2 {
+  margin: 0;
+}
+
+.rss-head p {
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rss-head h2 {
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.rss-head button {
+  border: 0;
+  background: var(--green);
+  color: #fff;
+  padding: 8px 13px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rss-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) 130px 150px;
+  gap: 12px;
+  align-items: end;
+}
+
+.rss-grid label {
+  display: grid;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.rss-grid input,
+.rss-grid select {
+  width: 100%;
+  border: 1px solid #cfd8d4;
+  background: #fff;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.rss-check {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+}
+
+.rss-note,
+.rss-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.rss-status.ok {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.rss-status.error {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.rss-status ul {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+
 .admin-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
@@ -1484,7 +1577,8 @@ select {
 
   .district-finder,
   .form-grid,
-  .settings-grid {
+  .settings-grid,
+  .rss-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -24,6 +24,12 @@ public/assets/uploads
 
 For Vercel deployment, commit and push uploaded local images if you want them to ship with the site. Runtime uploads on Vercel's serverless filesystem are not permanent; use Vercel Blob or another storage service for production-persistent CMS media.
 
+## RSS Importer
+
+The CMS includes an RSS importer for authorized/licensed feeds. It can read RSS items, choose a category, create a rewritten summary article, generate SEO metadata, attach the RSS source URL, and import posts as drafts or published posts.
+
+Use this only with feeds you have permission to republish or summarize. The importer is designed around RSS summaries and source attribution; it does not scrape full article pages.
+
 ## Local Run
 
 ```bash

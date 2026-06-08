@@ -339,6 +339,42 @@ async function load() {
   fillSettings();
 }
 
+function setRssStatus(message, kind = "") {
+  const status = $("#rssImportStatus");
+  if (!status) return;
+  status.className = `rss-status ${kind}`.trim();
+  status.innerHTML = message;
+}
+
+async function importRssFeed() {
+  const feedUrl = $("#rssFeedUrl").value.trim();
+  if (!feedUrl) {
+    setRssStatus("RSS Feed URL দিন", "error");
+    return;
+  }
+
+  setRssStatus("RSS feed পড়া হচ্ছে, AI rewrite + SEO তৈরি হচ্ছে...", "");
+  try {
+    const result = await api("/api/rss/import", {
+      method: "POST",
+      body: JSON.stringify({
+        feedUrl,
+        sourceName: $("#rssSourceName").value.trim(),
+        limit: $("#rssLimit").value,
+        autoPublish: $("#rssAutoPublish").checked
+      })
+    });
+    await load();
+    const importedList = result.imported
+      .map((item) => `<li>${item.title} (${item.status})</li>`)
+      .join("");
+    const skipped = result.skipped?.length ? ` | skipped: ${result.skipped.length}` : "";
+    setRssStatus(`Imported: ${result.imported.length}${skipped}<ul>${importedList}</ul>`, "ok");
+  } catch (error) {
+    setRssStatus("RSS import ব্যর্থ হয়েছে। URL/feed permission পরীক্ষা করুন।", "error");
+  }
+}
+
 function fillOptions() {
   const category = $("#category");
   const adminFilter = $("#adminFilter");
@@ -478,6 +514,8 @@ $("#imageUpload").addEventListener("change", (event) => {
   uploadImageFile(event.target.files?.[0]);
   event.target.value = "";
 });
+
+$("#rssImportButton").addEventListener("click", importRssFeed);
 
 $("#aiSeoButton").addEventListener("click", runAiSeo);
 $("#articleForm").addEventListener("input", renderSeoScore);

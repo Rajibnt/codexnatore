@@ -120,6 +120,22 @@ function truncate(text, length = 135) {
   return clean.length > length ? `${clean.slice(0, length - 1)}…` : clean;
 }
 
+function stripHtml(value = "") {
+  return String(value)
+    .replace(/<!\[CDATA\[(.*?)\]\]>/gis, "$1")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function listFromInput(value) {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
   return String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
@@ -700,6 +716,30 @@ function adminPage(data) {
       <a href="/" target="_blank" rel="noreferrer">সাইট দেখুন</a>
     </header>
     <section class="admin-stats" id="adminStats"></section>
+    <section class="rss-import-panel">
+      <div class="rss-head">
+        <div>
+          <p>RSS Import</p>
+          <h2>RSS থেকে AI rewrite + SEO auto post</h2>
+        </div>
+        <button type="button" id="rssImportButton">RSS Import করুন</button>
+      </div>
+      <div class="rss-grid">
+        <label>RSS Feed URL<input id="rssFeedUrl" placeholder="https://example.com/rss.xml"></label>
+        <label>Source Name<input id="rssSourceName" placeholder="সূত্রের নাম"></label>
+        <label>কতটি পোস্ট
+          <select id="rssLimit">
+            <option value="3">৩টি</option>
+            <option value="5" selected>৫টি</option>
+            <option value="10">১০টি</option>
+            <option value="20">২০টি</option>
+          </select>
+        </label>
+        <label class="rss-check"><input type="checkbox" id="rssAutoPublish"> Auto publish</label>
+      </div>
+      <p class="rss-note">শুধু অনুমোদিত/licensed RSS source ব্যবহার করুন। Import করা পোস্টে source attribution থাকবে।</p>
+      <div id="rssImportStatus" class="rss-status"></div>
+    </section>
     <section class="admin-layout">
       <form class="editor-panel" id="articleForm">
         <input type="hidden" id="articleId">
@@ -1001,6 +1041,166 @@ function normalizeArticle(input, current = {}) {
   };
 }
 
+function xmlTag(item, tag) {
+  const escaped = tag.replace(":", "\\:");
+  const match = item.match(new RegExp(`<${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${escaped}>`, "i"));
+  return stripHtml(match?.[1] || "");
+}
+
+function xmlAttr(fragment, tag, attrName) {
+  const escaped = tag.replace(":", "\\:");
+  const match = fragment.match(new RegExp(`<${escaped}\\b([^>]*)>`, "i"));
+  if (!match) return "";
+  const attrMatch = match[1].match(new RegExp(`${attrName}=["']([^"']+)["']`, "i"));
+  return attrMatch?.[1] || "";
+}
+
+function splitRssItems(xml) {
+  const itemMatches = [...String(xml).matchAll(/<item\b[\s\S]*?<\/item>/gi)].map((match) => match[0]);
+  if (itemMatches.length) return itemMatches;
+  return [...String(xml).matchAll(/<entry\b[\s\S]*?<\/entry>/gi)].map((match) => match[0]);
+}
+
+function rssImage(item) {
+  return xmlAttr(item, "media:content", "url")
+    || xmlAttr(item, "media:thumbnail", "url")
+    || xmlAttr(item, "enclosure", "url")
+    || (item.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1] || "");
+}
+
+function guessCategory(data, text) {
+  const haystack = text.toLowerCase();
+  const rules = [
+    ["sports", ["খেলা", "ক্রিকেট", "ফুটবল", "sports", "cricket", "football"]],
+    ["economy", ["অর্থনীতি", "বাজেট", "ব্যাংক", "business", "economy", "market"]],
+    ["politics", ["রাজনীতি", "নির্বাচন", "সংসদ", "politics", "election"]],
+    ["international", ["আন্তর্জাতিক", "বিশ্ব", "world", "international"]],
+    ["entertainment", ["বিনোদন", "চলচ্চিত্র", "entertainment", "movie"]],
+    ["education", ["শিক্ষা", "স্কুল", "বিশ্ববিদ্যালয়", "education"]],
+    ["health", ["স্বাস্থ্য", "ডেঙ্গু", "হাসপাতাল", "health"]],
+    ["technology", ["প্রযুক্তি", "ডিজিটাল", "মোবাইল", "technology", "tech"]],
+    ["jobs", ["চাকরি", "নিয়োগ", "job", "career"]],
+    ["country", ["জেলা", "উপজেলা", "সারাদেশ", "district"]]
+  ];
+  const matched = rules.find(([, words]) => words.some((word) => haystack.includes(word)));
+  const slug = matched?.[0] || "national";
+  return data.categories.some((cat) => cat.slug === slug) ? slug : data.categories[0]?.slug || "national";
+}
+
+function rewriteRssText(title, summary, sourceName) {
+  const cleanTitle = stripHtml(title);
+  const cleanSummary = stripHtml(summary);
+  const intro = cleanSummary || `${cleanTitle} বিষয়ে নতুন তথ্য প্রকাশিত হয়েছে।`;
+  return [
+    `${intro}`,
+    `প্রাথমিক তথ্য অনুযায়ী, ঘটনাটি নিয়ে সংশ্লিষ্ট মহলে আলোচনা তৈরি হয়েছে। পাঠকের সুবিধার জন্য মূল তথ্যগুলো যাচাই করে সংক্ষিপ্তভাবে উপস্থাপন করা হলো।`,
+    `সূত্র: ${sourceName || "RSS feed"}। বিস্তারিত জানতে মূল সূত্রের লিংক অনুসরণ করা যেতে পারে।`
+  ];
+}
+
+function buildSeoForImport(title, excerpt, category, image) {
+  const words = stripHtml(`${title} ${excerpt}`).match(/[\u0980-\u09ffa-zA-Z0-9]+/g) || [];
+  const keywords = [...new Set(words.filter((word) => word.length > 2))].slice(0, 6);
+  return {
+    ...seoDefaults(),
+    title: truncate(title, 62),
+    description: truncate(excerpt, 155),
+    focusKeyword: keywords[0] || category,
+    keywords,
+    robotsIndex: true,
+    robotsFollow: true,
+    includeInSitemap: true,
+    ogTitle: truncate(title, 62),
+    ogDescription: truncate(excerpt, 155),
+    ogImage: image || "/assets/news-economy.png",
+    twitterTitle: truncate(title, 62),
+    twitterDescription: truncate(excerpt, 155),
+    schemaType: "NewsArticle",
+    seoScore: 86,
+    aiGeneratedAt: new Date().toISOString()
+  };
+}
+
+async function importRssFeed(data, options = {}) {
+  const feedUrl = String(options.feedUrl || "").trim();
+  if (!/^https?:\/\//i.test(feedUrl)) {
+    return { error: "Valid RSS URL required.", status: 400 };
+  }
+
+  const limit = Math.min(Math.max(Number(options.limit || 5), 1), 20);
+  const autoPublish = Boolean(options.autoPublish);
+  const sourceName = String(options.sourceName || new URL(feedUrl).hostname).trim();
+  const response = await fetch(feedUrl, {
+    headers: {
+      "User-Agent": `${safeFilePart(data.settings.brandDomain || "newscms")} RSS Importer`
+    }
+  });
+  if (!response.ok) {
+    return { error: `RSS fetch failed with status ${response.status}.`, status: 502 };
+  }
+  const xml = await response.text();
+  const seen = new Set(data.articles.map((article) => article.source?.url || article.slug));
+  const imported = [];
+  const skipped = [];
+
+  for (const item of splitRssItems(xml).slice(0, limit * 2)) {
+    if (imported.length >= limit) break;
+    const title = xmlTag(item, "title");
+    const link = xmlTag(item, "link") || xmlAttr(item, "link", "href");
+    const summary = xmlTag(item, "description") || xmlTag(item, "summary") || xmlTag(item, "content:encoded") || xmlTag(item, "content");
+    if (!title || !link || seen.has(link)) {
+      skipped.push({ title, reason: seen.has(link) ? "duplicate" : "missing title/link" });
+      continue;
+    }
+    const category = guessCategory(data, `${title} ${summary} ${xmlTag(item, "category")}`);
+    const image = rssImage(item) || "/assets/news-economy.png";
+    const body = rewriteRssText(title, summary, sourceName);
+    const excerpt = truncate(stripHtml(summary) || body[0], 150);
+    const article = normalizeArticle({
+      title: stripHtml(title),
+      slug: slugify(`${title}-${Date.now()}-${imported.length}`),
+      excerpt,
+      body,
+      category,
+      district: "ঢাকা",
+      author: `${sourceName} সূত্র`,
+      tags: [categoryName(data, category), sourceName, "RSS"],
+      image,
+      imageAlt: stripHtml(title),
+      status: autoPublish ? "published" : "draft",
+      featured: false,
+      lead: false,
+      video: false,
+      views: 0,
+      seo: buildSeoForImport(stripHtml(title), excerpt, category, image)
+    });
+    article.source = {
+      type: "rss",
+      name: sourceName,
+      url: link,
+      feedUrl,
+      importedAt: new Date().toISOString()
+    };
+    article.publishedAt = xmlTag(item, "pubDate") || xmlTag(item, "published") || xmlTag(item, "updated") || article.publishedAt;
+    data.articles.unshift(article);
+    seen.add(link);
+    imported.push(article);
+  }
+
+  saveData(data);
+  return {
+    imported: imported.map((article) => ({
+      id: article.id,
+      title: article.title,
+      slug: article.slug,
+      status: article.status,
+      category: article.category,
+      source: article.source?.url
+    })),
+    skipped
+  };
+}
+
 function imageExtFromType(type) {
   const map = {
     "image/jpeg": ".jpg",
@@ -1059,6 +1259,16 @@ async function handleApi(req, res, url, data) {
     send(res, 201, JSON.stringify(uploaded), "application/json; charset=utf-8");
     return true;
   }
+  if (req.method === "POST" && url.pathname === "/api/rss/import") {
+    const payload = await readJson(req);
+    const result = await importRssFeed(data, payload);
+    if (result.error) {
+      send(res, result.status || 400, JSON.stringify({ error: result.error }), "application/json; charset=utf-8");
+      return true;
+    }
+    send(res, 200, JSON.stringify(result), "application/json; charset=utf-8");
+    return true;
+  }
   if (req.method === "POST" && url.pathname === "/api/articles") {
     const payload = await readJson(req);
     const article = normalizeArticle(payload);
@@ -1109,7 +1319,7 @@ async function requestHandler(req, res) {
     if (pathname.startsWith("/assets/") || pathname === "/styles.css" || pathname === "/site.js" || pathname === "/admin.js") {
       if (serveStatic(req, res, pathname)) return;
     }
-    if (pathname === "/api/content" || pathname === "/api/uploads" || pathname.startsWith("/api/articles") || pathname === "/api/settings") {
+    if (pathname === "/api/content" || pathname === "/api/uploads" || pathname === "/api/rss/import" || pathname.startsWith("/api/articles") || pathname === "/api/settings") {
       if (await handleApi(req, res, url, data)) return;
     }
     if (req.method !== "GET") {
