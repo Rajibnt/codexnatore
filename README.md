@@ -2,6 +2,18 @@
 
 Bangla news portal with server-rendered pages, article/category/search/archive routes, local CMS, RSS, robots.txt, sitemap, and social sharing.
 
+## CMS SEO
+
+The `/admin` editor includes per-post SEO controls:
+
+- SEO title, meta description, focus keyword, and keyword list
+- Canonical URL override
+- Robots directives: index/noindex, follow/nofollow, noarchive, nosnippet, noimageindex, max snippets, image/video preview
+- Open Graph and Twitter preview fields
+- Schema type for structured data
+- Sitemap inclusion toggle
+- One-click AI SEO helper that generates metadata from the post title, excerpt, and body
+
 ## Local Run
 
 ```bash

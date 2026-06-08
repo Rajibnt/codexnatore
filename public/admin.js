@@ -15,6 +15,143 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function cleanText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function truncateText(value, max) {
+  const text = cleanText(value);
+  return text.length > max ? text.slice(0, max - 1).trim() : text;
+}
+
+function wordsFrom(value) {
+  const stopWords = new Set([
+    "এবং", "করে", "হবে", "হয়েছে", "হয়েছে", "জন্য", "নিয়ে", "থেকে", "সঙ্গে", "করতে",
+    "বলেন", "জানান", "হয়", "হয়", "এই", "ওপর", "আরও", "একটি", "তারা", "তার", "এর",
+    "the", "and", "for", "with", "from", "this", "that"
+  ]);
+  return cleanText(value)
+    .toLowerCase()
+    .match(/[\u0980-\u09ffa-z0-9]+/g)?.filter((word) => word.length > 2 && !stopWords.has(word)) || [];
+}
+
+function extractKeywords() {
+  const weighted = `${$("#title").value} ${$("#title").value} ${$("#excerpt").value} ${$("#body").value}`;
+  const counts = new Map();
+  wordsFrom(weighted).forEach((word) => counts.set(word, (counts.get(word) || 0) + 1));
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .map(([word]) => word)
+    .slice(0, 8);
+}
+
+function seoValues() {
+  return {
+    title: $("#seoTitle")?.value || "",
+    description: $("#seoDescription")?.value || "",
+    focusKeyword: $("#focusKeyword")?.value || "",
+    keywords: $("#seoKeywords")?.value || "",
+    canonical: $("#canonicalUrl")?.value || "",
+    robotsIndex: $("#robotsIndex")?.checked,
+    robotsFollow: $("#robotsFollow")?.checked,
+    includeInSitemap: $("#includeInSitemap")?.checked,
+    noarchive: $("#noarchive")?.checked,
+    nosnippet: $("#nosnippet")?.checked,
+    noimageindex: $("#noimageindex")?.checked,
+    maxSnippet: $("#maxSnippet")?.value || "-1",
+    maxImagePreview: $("#maxImagePreview")?.value || "large",
+    maxVideoPreview: $("#maxVideoPreview")?.value || "-1",
+    ogTitle: $("#ogTitle")?.value || "",
+    ogDescription: $("#ogDescription")?.value || "",
+    ogImage: $("#ogImage")?.value || "",
+    twitterTitle: $("#twitterTitle")?.value || "",
+    twitterDescription: $("#twitterDescription")?.value || "",
+    schemaType: $("#schemaType")?.value || "NewsArticle"
+  };
+}
+
+function computeSeoStatus() {
+  const seo = seoValues();
+  const pageText = cleanText(`${$("#title").value} ${$("#excerpt").value} ${$("#body").value}`).toLowerCase();
+  const focus = cleanText(seo.focusKeyword).toLowerCase();
+  const canonicalOk = !seo.canonical || /^https?:\/\/[^ ]+\.[^ ]+/.test(seo.canonical);
+  const checks = [
+    ["SEO title ৩০-৬৫ অক্ষরের মধ্যে", seo.title.length >= 30 && seo.title.length <= 65],
+    ["Meta description ৮০-১৬০ অক্ষরের মধ্যে", seo.description.length >= 80 && seo.description.length <= 160],
+    ["Focus keyword আছে", Boolean(focus)],
+    ["Focus keyword title/description/body-তে আছে", Boolean(focus && `${seo.title} ${seo.description} ${pageText}`.toLowerCase().includes(focus))],
+    ["SEO keywords ৩টির বেশি", seo.keywords.split(",").filter((item) => item.trim()).length >= 3],
+    ["Slug তৈরি আছে", Boolean($("#slug").value.trim())],
+    ["Image alt text আছে", Boolean($("#imageAlt").value.trim())],
+    ["Robots index + follow চালু", Boolean(seo.robotsIndex && seo.robotsFollow)],
+    ["Sitemap include চালু", Boolean(seo.includeInSitemap)],
+    ["Canonical URL সঠিক বা খালি", canonicalOk],
+    ["Open Graph title/description/image আছে", Boolean(seo.ogTitle && seo.ogDescription && seo.ogImage)],
+    ["Structured data NewsArticle", seo.schemaType === "NewsArticle"],
+    ["মূল লেখা ৩০০+ অক্ষর", cleanText($("#body").value).length >= 300]
+  ];
+  const passed = checks.filter(([, ok]) => ok).length;
+  return { checks, score: Math.round((passed / checks.length) * 100) };
+}
+
+function renderSeoScore() {
+  const { checks, score } = computeSeoStatus();
+  const box = $("#seoScoreBox");
+  if (box) {
+    box.classList.toggle("good", score >= 85);
+    box.innerHTML = `<strong>${Number(score).toLocaleString("bn-BD")}%</strong><span>SEO স্কোর</span>`;
+  }
+  const checklist = $("#seoChecklist");
+  if (checklist) {
+    checklist.innerHTML = checks
+      .map(([label, ok]) => `<li class="${ok ? "pass" : ""}">${ok ? "✓" : "•"} ${label}</li>`)
+      .join("");
+  }
+  return score;
+}
+
+function runAiSeo() {
+  const title = cleanText($("#title").value);
+  const excerpt = cleanText($("#excerpt").value);
+  const body = cleanText($("#body").value);
+  const keywords = extractKeywords();
+  const focus = keywords[0] || title.split(/\s+/).slice(0, 2).join(" ");
+  const descriptionSource = excerpt || body;
+  const seoTitle = truncateText(title, 62);
+  let description = truncateText(descriptionSource, 155);
+  if (focus && description && !description.toLowerCase().includes(focus.toLowerCase())) {
+    description = truncateText(`${focus}: ${description}`, 155);
+  }
+
+  if (title && !$("#slug").value.trim()) $("#slug").value = slugify(title);
+  if (!$("#tags").value.trim() && keywords.length) $("#tags").value = keywords.slice(0, 5).join(", ");
+  if (!$("#imageAlt").value.trim()) $("#imageAlt").value = title;
+  $("#seoScoreBox").dataset.aiGeneratedAt = new Date().toISOString();
+
+  $("#seoTitle").value = seoTitle;
+  $("#seoDescription").value = description;
+  $("#focusKeyword").value = focus;
+  $("#seoKeywords").value = keywords.slice(0, 6).join(", ");
+  $("#canonicalUrl").value = "";
+  $("#ogTitle").value = seoTitle;
+  $("#ogDescription").value = description;
+  $("#ogImage").value = $("#image").value || "/assets/news-economy.png";
+  $("#twitterTitle").value = seoTitle;
+  $("#twitterDescription").value = description;
+  $("#schemaType").value = "NewsArticle";
+  $("#maxImagePreview").value = "large";
+  $("#maxSnippet").value = "-1";
+  $("#maxVideoPreview").value = "-1";
+  $("#robotsIndex").checked = true;
+  $("#robotsFollow").checked = true;
+  $("#includeInSitemap").checked = true;
+  $("#noarchive").checked = false;
+  $("#nosnippet").checked = false;
+  $("#noimageindex").checked = false;
+
+  renderSeoScore();
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json" },
@@ -75,6 +212,7 @@ function renderList() {
 }
 
 function fillArticle(article) {
+  const seo = article?.seo || {};
   $("#articleId").value = article?.id || "";
   $("#title").value = article?.title || "";
   $("#slug").value = article?.slug || "";
@@ -86,10 +224,32 @@ function fillArticle(article) {
   $("#tags").value = article?.tags?.join(", ") || "";
   $("#image").value = article?.image || "/assets/news-economy.png";
   $("#imageAlt").value = article?.imageAlt || "";
+  $("#seoTitle").value = seo.title || "";
+  $("#seoDescription").value = seo.description || "";
+  $("#focusKeyword").value = seo.focusKeyword || "";
+  $("#seoKeywords").value = Array.isArray(seo.keywords) ? seo.keywords.join(", ") : (seo.keywords || "");
+  $("#canonicalUrl").value = seo.canonical || "";
+  $("#ogTitle").value = seo.ogTitle || "";
+  $("#ogDescription").value = seo.ogDescription || "";
+  $("#ogImage").value = seo.ogImage || "";
+  $("#twitterTitle").value = seo.twitterTitle || "";
+  $("#twitterDescription").value = seo.twitterDescription || "";
+  $("#schemaType").value = seo.schemaType || "NewsArticle";
+  $("#maxImagePreview").value = seo.maxImagePreview || "large";
+  $("#maxSnippet").value = seo.maxSnippet || "-1";
+  $("#maxVideoPreview").value = seo.maxVideoPreview || "-1";
+  $("#robotsIndex").checked = seo.robotsIndex !== false;
+  $("#robotsFollow").checked = seo.robotsFollow !== false;
+  $("#includeInSitemap").checked = seo.includeInSitemap !== false;
+  $("#noarchive").checked = Boolean(seo.noarchive);
+  $("#nosnippet").checked = Boolean(seo.nosnippet);
+  $("#noimageindex").checked = Boolean(seo.noimageindex);
   $("#featured").checked = Boolean(article?.featured);
   $("#lead").checked = Boolean(article?.lead);
   $("#video").checked = Boolean(article?.video);
   $("#published").checked = article?.status !== "draft";
+  $("#seoScoreBox").dataset.aiGeneratedAt = seo.aiGeneratedAt || "";
+  renderSeoScore();
 }
 
 function fillSettings() {
@@ -102,6 +262,7 @@ function fillSettings() {
 }
 
 function articlePayload() {
+  const seoScore = renderSeoScore();
   return {
     title: $("#title").value,
     slug: $("#slug").value || slugify($("#title").value),
@@ -116,13 +277,24 @@ function articlePayload() {
     featured: $("#featured").checked,
     lead: $("#lead").checked,
     video: $("#video").checked,
-    status: $("#published").checked ? "published" : "draft"
+    status: $("#published").checked ? "published" : "draft",
+    seo: {
+      ...seoValues(),
+      keywords: $("#seoKeywords").value,
+      seoScore,
+      aiGeneratedAt: $("#seoScoreBox").dataset.aiGeneratedAt || ""
+    }
   };
 }
 
 $("#title").addEventListener("input", () => {
   if (!$("#articleId").value) $("#slug").value = slugify($("#title").value);
+  renderSeoScore();
 });
+
+$("#aiSeoButton").addEventListener("click", runAiSeo);
+$("#articleForm").addEventListener("input", renderSeoScore);
+$("#articleForm").addEventListener("change", renderSeoScore);
 
 $("#articleForm").addEventListener("submit", async (event) => {
   event.preventDefault();

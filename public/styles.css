@@ -1284,6 +1284,86 @@ select {
   align-self: end;
 }
 
+.seo-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #c6e7cf;
+  background: #f6fbf7;
+}
+
+.seo-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.seo-panel-head p,
+.seo-panel-head h2 {
+  margin: 0;
+}
+
+.seo-panel-head p {
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.seo-panel-head h2 {
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.seo-panel-head button {
+  border: 0;
+  background: #111827;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.seo-score {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 9px 11px;
+  background: #fff;
+  border: 1px solid #d7eadc;
+  border-left: 5px solid var(--red);
+}
+
+.seo-score.good {
+  border-left-color: var(--green);
+}
+
+.seo-score strong {
+  font-size: 25px;
+  line-height: 1;
+}
+
+.seo-checklist {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.seo-checklist li {
+  padding: 7px 9px;
+  border: 1px solid #dfe8e3;
+  background: #fff;
+  color: #44504b;
+}
+
+.seo-checklist li.pass {
+  border-color: #b9dfc4;
+  color: var(--green-dark);
+}
+
 @media (max-width: 1100px) {
   .lead-grid,
   .two-column-section,

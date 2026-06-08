@@ -108,12 +108,80 @@ function truncate(text, length = 135) {
   return clean.length > length ? `${clean.slice(0, length - 1)}…` : clean;
 }
 
+function listFromInput(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function seoDefaults() {
+  return {
+    title: "",
+    description: "",
+    focusKeyword: "",
+    keywords: [],
+    canonical: "",
+    robotsIndex: true,
+    robotsFollow: true,
+    noarchive: false,
+    nosnippet: false,
+    noimageindex: false,
+    maxSnippet: "-1",
+    maxImagePreview: "large",
+    maxVideoPreview: "-1",
+    includeInSitemap: true,
+    ogTitle: "",
+    ogDescription: "",
+    ogImage: "",
+    twitterTitle: "",
+    twitterDescription: "",
+    schemaType: "NewsArticle",
+    seoScore: 0,
+    aiGeneratedAt: ""
+  };
+}
+
+function normalizedSeo(article = {}) {
+  return { ...seoDefaults(), ...(article.seo || {}) };
+}
+
+function robotsContent(seoInput = {}) {
+  const seo = { ...seoDefaults(), ...seoInput };
+  const directives = [
+    seo.robotsIndex === false ? "noindex" : "index",
+    seo.robotsFollow === false ? "nofollow" : "follow"
+  ];
+
+  if (seo.noarchive) directives.push("noarchive");
+  if (seo.noimageindex) directives.push("noimageindex");
+  if (seo.nosnippet) {
+    directives.push("nosnippet");
+  } else {
+    directives.push(`max-snippet:${seo.maxSnippet || "-1"}`);
+  }
+  directives.push(`max-image-preview:${seo.maxImagePreview || "large"}`);
+  directives.push(`max-video-preview:${seo.maxVideoPreview || "-1"}`);
+
+  return directives.join(", ");
+}
+
+function isIndexableArticle(article) {
+  const seo = normalizedSeo(article);
+  return article.status === "published" && seo.robotsIndex !== false && seo.includeInSitemap !== false;
+}
+
 function head(data, meta = {}) {
   const title = meta.title || `${data.settings.brandName} | ${data.settings.tagline}`;
   const description = truncate(meta.description || data.settings.description, 160);
   const canonical = meta.canonical || siteUrl(data);
   const image = absoluteUrl(data, meta.image || "/assets/news-economy.png");
   const type = meta.type || "website";
+  const robots = meta.robots || "index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1";
+  const keywords = listFromInput(meta.keywords).join(", ");
+  const author = meta.author || data.settings.editor;
+  const ogTitle = meta.ogTitle || title;
+  const ogDescription = truncate(meta.ogDescription || description, 200);
+  const twitterTitle = meta.twitterTitle || ogTitle;
+  const twitterDescription = truncate(meta.twitterDescription || ogDescription, 200);
   const jsonLd = meta.jsonLd
     ? `<script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`
     : "";
@@ -125,19 +193,21 @@ function head(data, meta = {}) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${htmlEscape(title)}</title>
   <meta name="description" content="${attr(description)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  ${keywords ? `<meta name="keywords" content="${attr(keywords)}">` : ""}
+  <meta name="author" content="${attr(author)}">
+  <meta name="robots" content="${attr(robots)}">
   <link rel="canonical" href="${attr(canonical)}">
   <link rel="alternate" type="application/rss+xml" title="${attr(data.settings.brandName)} RSS" href="${attr(siteUrl(data))}/rss.xml">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta property="og:locale" content="bn_BD">
   <meta property="og:type" content="${attr(type)}">
-  <meta property="og:title" content="${attr(title)}">
-  <meta property="og:description" content="${attr(description)}">
+  <meta property="og:title" content="${attr(ogTitle)}">
+  <meta property="og:description" content="${attr(ogDescription)}">
   <meta property="og:url" content="${attr(canonical)}">
   <meta property="og:image" content="${attr(image)}">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${attr(title)}">
-  <meta name="twitter:description" content="${attr(description)}">
+  <meta name="twitter:title" content="${attr(twitterTitle)}">
+  <meta name="twitter:description" content="${attr(twitterDescription)}">
   <meta name="twitter:image" content="${attr(image)}">
   <meta name="theme-color" content="#138547">
   <link rel="preload" href="/styles.css?v=20260608-share3" as="style">
@@ -471,21 +541,29 @@ function shareIcon(name) {
 function articlePage(data, slug) {
   const article = published(data).find((item) => item.slug === slug);
   if (!article) return notFound(data);
+  const seo = normalizedSeo(article);
   const related = published(data)
     .filter((item) => item.category === article.category && item.id !== article.id)
     .slice(0, 4);
-  const canonical = `${siteUrl(data)}/news/${article.slug}`;
-  const encodedUrl = encodeURIComponent(canonical);
-  const encodedTitle = encodeURIComponent(article.title);
-  const shareText = `${article.title}\n${canonical}`;
+  const articleUrl = `${siteUrl(data)}/news/${article.slug}`;
+  const canonical = seo.canonical || articleUrl;
+  const seoTitle = seo.title || article.title;
+  const seoDescription = seo.description || article.excerpt;
+  const socialTitle = seo.ogTitle || seoTitle;
+  const socialDescription = seo.ogDescription || seoDescription;
+  const socialImage = seo.ogImage || article.image;
+  const encodedUrl = encodeURIComponent(articleUrl);
+  const encodedTitle = encodeURIComponent(socialTitle);
+  const shareText = `${socialTitle}\n${articleUrl}`;
   const encodedShareText = encodeURIComponent(shareText);
-  const encodedQuote = encodeURIComponent(`${article.title}\n${article.excerpt}`);
+  const encodedQuote = encodeURIComponent(`${socialTitle}\n${socialDescription}`);
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    headline: article.title,
-    description: article.excerpt,
-    image: [absoluteUrl(data, article.image)],
+    "@type": seo.schemaType || "NewsArticle",
+    headline: seoTitle,
+    description: seoDescription,
+    keywords: listFromInput(seo.keywords).join(", "),
+    image: [absoluteUrl(data, socialImage)],
     datePublished: article.publishedAt,
     dateModified: article.updatedAt || article.publishedAt,
     author: { "@type": "Person", name: article.author || data.settings.editor },
@@ -538,10 +616,17 @@ function articlePage(data, slug) {
   </section>`;
 
   return layout(data, {
-    title: `${article.title} | ${data.settings.brandName}`,
-    description: article.excerpt,
+    title: `${seoTitle} | ${data.settings.brandName}`,
+    description: seoDescription,
     canonical,
-    image: article.image,
+    image: socialImage,
+    keywords: seo.keywords,
+    author: article.author || data.settings.editor,
+    robots: robotsContent(seo),
+    ogTitle: socialTitle,
+    ogDescription: socialDescription,
+    twitterTitle: seo.twitterTitle || socialTitle,
+    twitterDescription: seo.twitterDescription || socialDescription,
     type: "article",
     jsonLd
   }, body);
@@ -618,6 +703,62 @@ function adminPage(data) {
         </div>
         <label>ছবি URL<input id="image"></label>
         <label>ছবির alt text<input id="imageAlt"></label>
+        <section class="seo-panel">
+          <div class="seo-panel-head">
+            <div>
+              <p>SEO</p>
+              <h2>গুগল ইনডেক্স ও সোশ্যাল প্রিভিউ</h2>
+            </div>
+            <button type="button" id="aiSeoButton">AI SEO তৈরি করুন</button>
+          </div>
+          <div class="seo-score" id="seoScoreBox">
+            <strong>০%</strong>
+            <span>SEO স্কোর</span>
+          </div>
+          <label>SEO Title<input id="seoTitle" maxlength="70" placeholder="৫০-৬০ অক্ষরের মধ্যে রাখুন"></label>
+          <label>Meta Description<textarea id="seoDescription" rows="3" maxlength="170" placeholder="১২০-১৬০ অক্ষরের সার্চ স্নিপেট"></textarea></label>
+          <div class="form-grid">
+            <label>Focus Keyword<input id="focusKeyword"></label>
+            <label>SEO Keywords<input id="seoKeywords" placeholder="কমা দিয়ে লিখুন"></label>
+          </div>
+          <label>Canonical URL<input id="canonicalUrl" placeholder="খালি রাখলে পোস্টের নিজের URL ব্যবহার হবে"></label>
+          <div class="form-grid">
+            <label>OG Title<input id="ogTitle"></label>
+            <label>OG Image<input id="ogImage" placeholder="/assets/news-economy.png"></label>
+          </div>
+          <label>OG Description<textarea id="ogDescription" rows="2"></textarea></label>
+          <div class="form-grid">
+            <label>Twitter Title<input id="twitterTitle"></label>
+            <label>Twitter Description<input id="twitterDescription"></label>
+          </div>
+          <div class="form-grid">
+            <label>Schema Type
+              <select id="schemaType">
+                <option value="NewsArticle">NewsArticle</option>
+                <option value="Article">Article</option>
+                <option value="BlogPosting">BlogPosting</option>
+              </select>
+            </label>
+            <label>Max Image Preview
+              <select id="maxImagePreview">
+                <option value="large">large</option>
+                <option value="standard">standard</option>
+                <option value="none">none</option>
+              </select>
+            </label>
+            <label>Max Snippet<input id="maxSnippet" value="-1"></label>
+            <label>Max Video Preview<input id="maxVideoPreview" value="-1"></label>
+          </div>
+          <div class="toggle-row seo-toggles">
+            <label><input type="checkbox" id="robotsIndex" checked> index</label>
+            <label><input type="checkbox" id="robotsFollow" checked> follow</label>
+            <label><input type="checkbox" id="includeInSitemap" checked> sitemap</label>
+            <label><input type="checkbox" id="noarchive"> noarchive</label>
+            <label><input type="checkbox" id="nosnippet"> nosnippet</label>
+            <label><input type="checkbox" id="noimageindex"> noimageindex</label>
+          </div>
+          <ul class="seo-checklist" id="seoChecklist"></ul>
+        </section>
         <div class="toggle-row">
           <label><input type="checkbox" id="featured"> ফিচার্ড</label>
           <label><input type="checkbox" id="lead"> লিড নিউজ</label>
@@ -697,7 +838,7 @@ function sitemap(data) {
     ["", new Date().toISOString()],
     ["archive", new Date().toISOString()],
     ...data.categories.map((cat) => [`category/${cat.slug}`, new Date().toISOString()]),
-    ...published(data).map((article) => [`news/${article.slug}`, article.updatedAt || article.publishedAt])
+    ...published(data).filter(isIndexableArticle).map((article) => [`news/${article.slug}`, article.updatedAt || article.publishedAt])
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -771,6 +912,43 @@ async function readJson(req) {
   return raw ? JSON.parse(raw) : {};
 }
 
+function normalizeSeoInput(input = {}, current = {}) {
+  const existing = { ...seoDefaults(), ...(current.seo || {}) };
+  const seoInput = input.seo || {};
+  const boolValue = (key, fallback) => (
+    Object.prototype.hasOwnProperty.call(seoInput, key) ? Boolean(seoInput[key]) : fallback
+  );
+
+  return {
+    title: String(seoInput.title ?? existing.title ?? "").trim(),
+    description: String(seoInput.description ?? existing.description ?? "").trim(),
+    focusKeyword: String(seoInput.focusKeyword ?? existing.focusKeyword ?? "").trim(),
+    keywords: listFromInput(seoInput.keywords ?? existing.keywords),
+    canonical: String(seoInput.canonical ?? existing.canonical ?? "").trim(),
+    robotsIndex: boolValue("robotsIndex", existing.robotsIndex !== false),
+    robotsFollow: boolValue("robotsFollow", existing.robotsFollow !== false),
+    noarchive: boolValue("noarchive", Boolean(existing.noarchive)),
+    nosnippet: boolValue("nosnippet", Boolean(existing.nosnippet)),
+    noimageindex: boolValue("noimageindex", Boolean(existing.noimageindex)),
+    maxSnippet: String(seoInput.maxSnippet ?? existing.maxSnippet ?? "-1").trim() || "-1",
+    maxImagePreview: ["large", "standard", "none"].includes(seoInput.maxImagePreview)
+      ? seoInput.maxImagePreview
+      : (existing.maxImagePreview || "large"),
+    maxVideoPreview: String(seoInput.maxVideoPreview ?? existing.maxVideoPreview ?? "-1").trim() || "-1",
+    includeInSitemap: boolValue("includeInSitemap", existing.includeInSitemap !== false),
+    ogTitle: String(seoInput.ogTitle ?? existing.ogTitle ?? "").trim(),
+    ogDescription: String(seoInput.ogDescription ?? existing.ogDescription ?? "").trim(),
+    ogImage: String(seoInput.ogImage ?? existing.ogImage ?? "").trim(),
+    twitterTitle: String(seoInput.twitterTitle ?? existing.twitterTitle ?? "").trim(),
+    twitterDescription: String(seoInput.twitterDescription ?? existing.twitterDescription ?? "").trim(),
+    schemaType: ["NewsArticle", "Article", "BlogPosting"].includes(seoInput.schemaType)
+      ? seoInput.schemaType
+      : (existing.schemaType || "NewsArticle"),
+    seoScore: Number(seoInput.seoScore ?? existing.seoScore ?? 0),
+    aiGeneratedAt: String(seoInput.aiGeneratedAt ?? existing.aiGeneratedAt ?? "").trim()
+  };
+}
+
 function normalizeArticle(input, current = {}) {
   const now = new Date().toISOString();
   const title = String(input.title || current.title || "").trim();
@@ -799,6 +977,7 @@ function normalizeArticle(input, current = {}) {
     lead: Boolean(input.lead),
     video: Boolean(input.video),
     views: Number(input.views ?? current.views ?? 0),
+    seo: normalizeSeoInput(input, current),
     publishedAt: current.publishedAt || now,
     updatedAt: now
   };
