@@ -209,6 +209,28 @@ function canvasToBlob(canvas, quality) {
   });
 }
 
+function drawCoverImage(context, image, width, height) {
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = Math.round(image.naturalWidth * scale);
+  const drawHeight = Math.round(image.naturalHeight * scale);
+  const drawX = Math.round((width - drawWidth) / 2);
+  const drawY = Math.round((height - drawHeight) / 2);
+  context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+}
+
+async function compressedBlobFromCanvas(sourceCanvas) {
+  let bestBlob = null;
+  for (let quality = 0.88; quality >= 0.04; quality -= 0.04) {
+    const blob = await canvasToBlob(sourceCanvas, Number(quality.toFixed(2)));
+    if (blob && (!bestBlob || blob.size < bestBlob.size)) bestBlob = blob;
+    if (blob && blob.size <= TARGET_UPLOAD_BYTES) return blob;
+  }
+  return bestBlob;
+}
+
 async function normalizeImageFile(file) {
   const dataUrl = await readFileAsDataUrl(file);
   const source = await loadImage(dataUrl);
@@ -217,29 +239,33 @@ async function normalizeImageFile(file) {
   canvas.height = UPLOAD_HEIGHT;
 
   const context = canvas.getContext("2d");
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, UPLOAD_WIDTH, UPLOAD_HEIGHT);
+  drawCoverImage(context, source, UPLOAD_WIDTH, UPLOAD_HEIGHT);
 
-  const scale = Math.max(UPLOAD_WIDTH / source.naturalWidth, UPLOAD_HEIGHT / source.naturalHeight);
-  const drawWidth = Math.round(source.naturalWidth * scale);
-  const drawHeight = Math.round(source.naturalHeight * scale);
-  const drawX = Math.round((UPLOAD_WIDTH - drawWidth) / 2);
-  const drawY = Math.round((UPLOAD_HEIGHT - drawHeight) / 2);
-  context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
+  let blob = await compressedBlobFromCanvas(canvas);
 
-  let blob = null;
-  let bestBlob = null;
-  let quality = 0.86;
-  while (quality >= 0.14) {
-    blob = await canvasToBlob(canvas, quality);
-    if (blob && (!bestBlob || blob.size < bestBlob.size)) bestBlob = blob;
-    if (blob && blob.size <= TARGET_UPLOAD_BYTES) break;
-    quality -= 0.06;
+  if (!blob || blob.size > MAX_UPLOAD_BYTES) {
+    const detailScales = [0.82, 0.68, 0.54, 0.42, 0.32, 0.24];
+    for (const scale of detailScales) {
+      const lowCanvas = document.createElement("canvas");
+      lowCanvas.width = Math.max(1, Math.round(UPLOAD_WIDTH * scale));
+      lowCanvas.height = Math.max(1, Math.round(UPLOAD_HEIGHT * scale));
+
+      const lowContext = lowCanvas.getContext("2d");
+      drawCoverImage(lowContext, source, lowCanvas.width, lowCanvas.height);
+
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, UPLOAD_WIDTH, UPLOAD_HEIGHT);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = "high";
+      context.drawImage(lowCanvas, 0, 0, UPLOAD_WIDTH, UPLOAD_HEIGHT);
+
+      blob = await compressedBlobFromCanvas(canvas);
+      if (blob && blob.size <= MAX_UPLOAD_BYTES) break;
+    }
   }
 
-  if (!blob || blob.size > MAX_UPLOAD_BYTES) blob = bestBlob;
   if (!blob || blob.size > MAX_UPLOAD_BYTES) {
-    throw new Error("Image could not be compressed under 300KB while keeping 900x520px.");
+    throw new Error("Image could not be compressed under 300KB.");
   }
 
   const compressedDataUrl = await readFileAsDataUrl(blob);
@@ -282,7 +308,7 @@ async function uploadImageFile(file) {
     setUploadStatus(`আপলোড সম্পন্ন: ${uploaded.width}x${uploaded.height}px, ${(uploaded.size / 1024).toFixed(0)}KB`, "ok");
     renderSeoScore();
   } catch (error) {
-    setUploadStatus("এই ছবি খুব জটিল, কম noise/কম details ছবি দিন", "error");
+    setUploadStatus("ছবি প্রসেস করা যায়নি, JPG/PNG/WEBP ছবি দিয়ে আবার চেষ্টা করুন", "error");
   }
 }
 

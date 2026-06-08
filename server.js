@@ -817,7 +817,7 @@ function adminPage(data) {
   })}
 <body class="admin-page">
   ${body}
-  <script src="/admin.js?v=20260608-share3" defer></script>
+  <script src="/admin.js?v=20260608-uploadfix" defer></script>
 </body>
 </html>`;
 }
