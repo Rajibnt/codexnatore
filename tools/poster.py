@@ -20,7 +20,7 @@ spec.json keys (all text in Bangla unless a name/brand):
   specs     : list of [label, value] rows (stat layout; up to 5)
   date      : date text for news layout, e.g. "১৭ নভেম্বর ২০২৬"
   source    : source line, e.g. "সূত্র: প্রথম আলো"
-  (news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
+  (spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
 """
 import json, sys, os, subprocess, shutil, html, tempfile
 from PIL import Image
@@ -67,6 +67,8 @@ def brand(color="#fff"):
     return f'<div class="brand" style="color:{color}"><div class="mark"><div class="dot">আ</div>আমার নাটোর</div><div class="cat">#{html.escape(lab)}</div></div>'
 
 if layout == "spotlight":
+    BN = str.maketrans('0123456789', '০১২৩৪৫৬৭৮৯')
+    tips = "".join(f'<div class="t"><b>{str(i+1).translate(BN)}</b><span>{html.escape(x)}</span></div>' for i, x in enumerate(spec.get("items", [])[:4]))
     body = f"""<style>{base_css}
 body{{background:radial-gradient(circle at 80% 18%,{md} 0%,{dk} 55%,#05070f 100%);color:#fff}}
 .grid{{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:60px 60px}}
@@ -76,8 +78,11 @@ h1{{font-size:96px;line-height:1.28;font-weight:800;margin:46px 0 0}}
 h1 span{{color:{ac};display:block}}
 p{{font-size:40px;line-height:1.55;color:#e8ecff;margin:48px 0 0;max-width:860px}}
 .bar{{width:120px;height:10px;background:{ac};border-radius:6px;margin-top:48px}}
+.tips{{position:absolute;left:72px;right:72px;bottom:150px;display:grid;grid-template-columns:1fr 1fr;gap:18px}}
+.t{{background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.18);border-radius:22px;padding:20px 22px;display:flex;gap:16px;align-items:center;font-size:30px;font-weight:700;line-height:1.35}}
+.t b{{flex:none;width:52px;height:52px;border-radius:50%;background:{ac};color:{dk};display:flex;align-items:center;justify-content:center;font-size:28px}}
 </style><div class="grid"></div><div class="ring"></div>
-<div class="wrap"><div class="pill">{e('tag')}</div><h1>{e('title')}<span>{e('highlight')}</span></h1><div class="bar"></div><p>{e('sub')}</p></div>{brand()}"""
+<div class="wrap"><div class="pill">{e('tag')}</div><h1>{e('title')}<span>{e('highlight')}</span></h1><div class="bar"></div><p>{e('sub')}</p></div>{('<div class="tips">' + tips + '</div>') if tips else ''}{brand()}"""
 
 elif layout == "list":
     BN = str.maketrans('0123456789', '০১২৩৪৫৬৭৮৯')
