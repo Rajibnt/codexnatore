@@ -102,8 +102,9 @@ blockquote{{margin:30px 0 0;font-size:56px;line-height:1.6;font-weight:700}}
 .ref{{margin-top:50px;font-size:34px;color:{ac};font-weight:700}}
 .orn{{width:180px;height:4px;background:{ac};margin:46px auto 0;border-radius:4px}}
 .top{{position:absolute;top:100px;left:0;right:0;text-align:center}}
+.brand{{left:96px;right:96px;bottom:86px}}
 </style><div class="frame"></div><div class="top"><div class="pill">{e('tag')}</div></div>
-<div class="wrap" style="top:250px"><div class="q">“</div><blockquote>{e('quote')}</blockquote><div class="orn"></div><div class="ref">{e('ref')}</div></div>{brand()}"""
+<div class="wrap" style="top:330px"><div class="q">“</div><blockquote>{e('quote')}</blockquote><div class="orn"></div><div class="ref">{e('ref')}</div></div>{brand()}"""
 
 elif layout == "news":
     body = f"""<style>{base_css}
