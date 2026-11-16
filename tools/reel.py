@@ -15,6 +15,12 @@ reel.json:
   cta      : closing line (default: "আরও এমন পোস্ট পেতে পেজটি ফলো করুন")
   source   : optional source line on the closing slide, e.g. "সূত্র: প্রথম আলো"
   music    : true/false (default true) — generated soft pad, no copyrighted audio
+  voice    : true/false (default true) — Bangla voice-over (offline neural TTS, sherpa-onnx + Coqui Bangla VITS)
+  intro_vo : spoken text for the intro slide (default: title + highlight)
+  outro_vo : spoken text for the closing slide (default: cta)
+  points[i].vo : spoken text for a point (default: its text). Write VO in natural spoken Bangla,
+             numbers as words (e.g. "উনিশ হাজার নয়শো নিরানব্বই টাকা"), no English abbreviations if avoidable.
+Voice setup (once per machine): bash tools/setup_tts.sh   (downloads the model from GitHub releases to ~/.tts)
 """
 import json, sys, os, subprocess, shutil, html, tempfile
 
@@ -75,7 +81,8 @@ slides.append(f"""<div class="grid"></div><div class="ring"></div><div class="ri
 <div style="font-size:110px;font-weight:800;line-height:1.25;color:{ac}">{esc(spec.get('highlight'))}</div>
 <div style="width:160px;height:14px;border-radius:8px;background:{ac};margin-top:60px"></div></div>{BRAND}""")
 for i, p in enumerate(pts, 1):
-    big = f'<div style="font-size:150px;font-weight:800;color:{ac};line-height:1.15;margin-bottom:30px">{esc(p.get("big"))}</div>' if p.get("big") else ""
+    _bl = len(str(p.get("big") or "")); _bs = 150 if _bl <= 10 else (112 if _bl <= 14 else 88)
+    big = f'<div style="white-space:nowrap;font-size:{_bs}px;font-weight:800;color:{ac};line-height:1.15;margin-bottom:30px">{esc(p.get("big"))}</div>' if p.get("big") else ""
     slides.append(f"""<div class="grid"></div><div class="ring"></div>{dots(i)}
 <div style="position:absolute;left:90px;right:90px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center">
 <div style="width:170px;height:170px;border-radius:50%;background:{ac};color:{dk};font-size:96px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:60px">{str(i).translate(BN)}</div>
@@ -100,6 +107,25 @@ for k, body in enumerate(slides):
 
 # durations: intro 3.5s, points by text length (3.5-5.5s), outro 3.5s
 durs = [3.5] + [min(5.5, 3.2 + len(p.get("text", "")) / 30) for p in pts] + [3.5]
+vo_files = []
+if spec.get("voice", True):
+    try:
+        import sherpa_onnx, soundfile as sf
+        md_dir = os.path.expanduser(os.environ.get("TTS_MODEL_DIR", "~/.tts/vits-coqui-bn-custom_female"))
+        cfg = sherpa_onnx.OfflineTtsConfig(model=sherpa_onnx.OfflineTtsModelConfig(
+            vits=sherpa_onnx.OfflineTtsVitsModelConfig(model=f"{md_dir}/model.onnx", tokens=f"{md_dir}/tokens.txt"), num_threads=4))
+        tts = sherpa_onnx.OfflineTts(cfg)
+        texts = [spec.get("intro_vo") or f"{spec.get('title','')} {spec.get('highlight','')}"]
+        texts += [p.get("vo") or p.get("text", "") for p in pts]
+        texts += [spec.get("outro_vo") or cta]
+        for k, tx in enumerate(texts):
+            a = tts.generate(tx, sid=0, speed=float(spec.get("voice_speed", 1.0)))
+            fp = os.path.join(tmp, f"vo{k}.wav"); sf.write(fp, a.samples, a.sample_rate)
+            dur = len(a.samples) / a.sample_rate
+            vo_files.append((fp, dur))
+            durs[k] = max(durs[k], dur + 1.1)
+    except Exception as ex:
+        print("voice-over skipped:", ex, file=sys.stderr); vo_files = []
 X = 0.5  # crossfade
 args, filt = ["ffmpeg", "-y", "-loglevel", "error"], []
 for k, (pp, d) in enumerate(zip(pngs, durs)):
@@ -112,14 +138,28 @@ for k in range(1, len(pngs)):
     filt.append(f"[{prev}][v{k}]xfade=transition=slideleft:duration={X}:offset={off:.2f}[x{k}]")
     prev, t = f"x{k}", t + durs[k] - X
 total = t
+starts, acc = [], 0.0
+for k, d in enumerate(durs):
+    starts.append(acc); acc += d - X
+amix_in = []
 if spec.get("music", True):
     # generated soft pad (no copyrighted audio): two detuned chords with slow tremolo
     expr = ("0.05*(sin(2*PI*220*t)+sin(2*PI*277.18*t)+sin(2*PI*329.63*t))*(0.6+0.4*sin(2*PI*0.25*t))"
             "+0.03*sin(2*PI*110*t)")
     args += ["-f", "lavfi", "-t", f"{total:.2f}", "-i", f"aevalsrc='{expr}':s=44100:c=stereo"]
     a = len(pngs)
-    filt.append(f"[{a}:a]lowpass=f=1800,afade=t=in:d=1.5,afade=t=out:st={total-2:.2f}:d=2,volume=0.8[a]")
-    maps = ["-map", f"[{prev}]", "-map", "[a]", "-c:a", "aac", "-b:a", "128k"]
+    mv = 0.25 if vo_files else 0.8
+    filt.append(f"[{a}:a]lowpass=f=1800,afade=t=in:d=1.5,afade=t=out:st={total-2:.2f}:d=2,volume={mv}[mus]")
+    amix_in.append("[mus]")
+base = len(pngs) + (1 if spec.get("music", True) else 0)
+for k, (fp, dur) in enumerate(vo_files):
+    args += ["-i", fp]
+    ms = int((starts[k] + 0.35) * 1000)
+    filt.append(f"[{base + k}:a]aresample=44100,aformat=channel_layouts=stereo,adelay={ms}|{ms},volume=1.25[vo{k}]")
+    amix_in.append(f"[vo{k}]")
+if amix_in:
+    filt.append("".join(amix_in) + f"amix=inputs={len(amix_in)}:normalize=0:duration=longest,atrim=0:{total:.2f},alimiter=limit=0.9[a]")
+    maps = ["-map", f"[{prev}]", "-map", "[a]", "-c:a", "aac", "-b:a", "160k"]
 else:
     maps = ["-map", f"[{prev}]"]
 args += ["-filter_complex", ";".join(filt)] + maps + ["-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
