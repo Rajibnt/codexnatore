@@ -79,7 +79,8 @@ p{{font-size:40px;line-height:1.55;color:#e8ecff;margin:48px 0 0;max-width:860px
 <div class="wrap"><div class="pill">{e('tag')}</div><h1>{e('title')}<span>{e('highlight')}</span></h1><div class="bar"></div><p>{e('sub')}</p></div>{brand()}"""
 
 elif layout == "list":
-    items = "".join(f'<li><b>{i+1}</b><span>{html.escape(t)}</span></li>' for i, t in enumerate(spec.get("items", [])[:5]))
+    BN = str.maketrans('0123456789', '০১২৩৪৫৬৭৮৯')
+    items = "".join(f'<li><b>{str(i+1).translate(BN)}</b><span>{html.escape(t)}</span></li>' for i, t in enumerate(spec.get("items", [])[:5]))
     body = f"""<style>{base_css}
 body{{background:{lt};color:{dk}}}
 .head{{background:linear-gradient(135deg,{dk},{md});color:#fff;padding:80px 72px 70px;border-bottom-right-radius:120px}}
