@@ -1,4 +1,5 @@
-dhaka_datetime,type,topic,source_url,image
-2026-11-16 21:38,tip,"Google vs AI search - ChatGPT search volume one-fifth of Google",https://www.marketingprofs.com/opinions/2026/56257/ai-update-november-6-2026-ai-news-and-views-from-the-past-week,2026-11-16-evening.jpg
-2026-11-16 21:47,news,"Google opens access to Gemini 4 Carbon",https://www.theneuron.ai/digest/everything-that-happened-in-ai-today-wednesday-november-11-2026/,2026-11-16-2145.jpg
-2026-11-16 22:05,news,"Google DeepMind AlphaGenome 2 DNA variant model",https://deepmind.google/blog/alphagenome-2-deciphering-how-cells-read-dna-to-better-understand-disease/,2026-11-16-2205.jpg
+dhaka_datetime,category,topic,source_url,image,layout
+2026-11-16 21:38,ai,Google vs AI search - ChatGPT search volume one-fifth of Google,https://www.marketingprofs.com/opinions/2026/56257/ai-update-november-6-2026-ai-news-and-views-from-the-past-week,2026-11-16-evening.jpg,spotlight
+2026-11-16 21:47,ai,Google opens access to Gemini 4 Carbon,https://www.theneuron.ai/digest/everything-that-happened-in-ai-today-wednesday-november-11-2026/,2026-11-16-2145.jpg,spotlight
+2026-11-16 22:05,ai,Google DeepMind AlphaGenome 2 DNA variant model,https://deepmind.google/blog/alphagenome-2-deciphering-how-cells-read-dna-to-better-understand-disease/,2026-11-16-2205.jpg,spotlight
+2026-11-16 23:12,english,Corporate English: 5 useful office email lines,evergreen,2026-11-16-2310.jpg,list
