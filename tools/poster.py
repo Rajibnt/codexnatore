@@ -20,6 +20,7 @@ spec.json keys (all text in Bangla unless a name/brand):
   specs     : list of [label, value] rows (stat layout; up to 5)
   date      : date text for news layout, e.g. "১৭ নভেম্বর ২০২৬"
   source    : source line, e.g. "সূত্র: প্রথম আলো"
+  (news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
 """
 import json, sys, os, subprocess, shutil, html, tempfile
 from PIL import Image
@@ -108,6 +109,7 @@ blockquote{{margin:30px 0 0;font-size:56px;line-height:1.6;font-weight:700}}
 <div class="wrap" style="top:330px"><div class="q">“</div><blockquote>{e('quote')}</blockquote><div class="orn"></div><div class="ref">{e('ref')}</div></div>{brand()}"""
 
 elif layout == "news":
+    facts = "".join(f'<div class="f"><i></i><span>{html.escape(t)}</span></div>' for t in spec.get("items", [])[:4])
     body = f"""<style>{base_css}
 body{{background:#fff;color:#111}}
 .band{{background:{dk};color:#fff;padding:56px 72px;display:flex;justify-content:space-between;align-items:center}}
@@ -119,8 +121,12 @@ h1 span{{color:{md}}}
 p{{font-size:40px;line-height:1.6;color:#374151;margin:44px 0 0;border-left:10px solid {ac};padding-left:28px}}
 .src{{position:absolute;left:72px;bottom:140px;font-size:28px;color:#6b7280;font-weight:700}}
 .blk{{position:absolute;right:-80px;bottom:200px;width:360px;height:360px;border-radius:50%;background:{lt}}}
+.facts{{margin:46px 72px 0;background:{lt};border-radius:28px;padding:18px 34px;position:relative}}
+.f{{display:flex;gap:22px;align-items:flex-start;font-size:34px;font-weight:700;line-height:1.45;padding:16px 0;color:{dk}}}
+.f+.f{{border-top:2px solid rgba(0,0,0,.07)}}
+.f i{{flex:none;width:18px;height:18px;border-radius:50%;background:{md};margin-top:17px}}
 </style><div class="band"><div class="pill">{e('tag')}</div><div class="date">{e('date')}</div></div><div class="stripe"></div>
-<div class="blk"></div><div class="wrap"><h1>{e('title')} <span>{e('highlight')}</span></h1><p>{e('sub')}</p></div>
+<div class="blk"></div><div class="wrap"><h1>{e('title')} <span>{e('highlight')}</span></h1><p>{e('sub')}</p></div>{('<div class="facts">' + facts + '</div>') if facts else ''}
 <div class="src">{e('source')}</div>{brand(dk)}"""
 
 elif layout == "stat":
