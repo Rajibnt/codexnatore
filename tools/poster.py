@@ -86,7 +86,12 @@ p{{font-size:40px;line-height:1.55;color:#e8ecff;margin:48px 0 0;max-width:860px
 
 elif layout == "list":
     BN = str.maketrans('0123456789', '০১২৩৪৫৬৭৮৯')
-    items = "".join(f'<li><b>{str(i+1).translate(BN)}</b><span>{html.escape(t)}</span></li>' for i, t in enumerate(spec.get("items", [])[:5]))
+    def _li(t):
+        if '|' in t:
+            a, b = [x.strip() for x in t.split('|', 1)]
+            return f'<span>{html.escape(a)}<small>{html.escape(b)}</small></span>'
+        return f'<span>{html.escape(t)}</span>'
+    items = "".join(f'<li><b>{str(i+1).translate(BN)}</b>{_li(t)}</li>' for i, t in enumerate(spec.get("items", [])[:5]))
     body = f"""<style>{base_css}
 body{{background:{lt};color:{dk}}}
 .head{{background:linear-gradient(135deg,{dk},{md});color:#fff;padding:80px 72px 70px;border-bottom-right-radius:120px}}
@@ -94,6 +99,7 @@ h1{{font-size:76px;line-height:1.3;font-weight:800;margin:36px 0 0}}
 h1 span{{color:{ac}}}
 ul{{list-style:none;margin:56px 72px 0;padding:0}}
 li{{display:flex;align-items:center;gap:28px;background:#fff;border-radius:24px;padding:22px 30px;margin-bottom:20px;box-shadow:0 6px 0 rgba(0,0,0,.06);font-size:38px;font-weight:700;line-height:1.4}}
+li small{{display:block;font-size:30px;font-weight:600;color:{md};margin-top:4px}}
 li b{{flex:none;width:72px;height:72px;border-radius:50%;background:{md};color:#fff;display:flex;align-items:center;justify-content:center;font-size:36px}}
 .sub{{position:absolute;left:72px;right:72px;bottom:118px;font-size:32px;color:{md};font-weight:700}}
 </style><div class="head"><div class="pill">{e('tag')}</div><h1>{e('title')} <span>{e('highlight')}</span></h1></div>
