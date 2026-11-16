@@ -139,18 +139,24 @@ td:last-child{{border-radius:0 18px 18px 0}}
 <div class="card"><div class="big">{e('big')}</div><div class="bl">{e('big_label')}</div></div><table>{rows}</table>{brand(dk)}"""
 
 else:  # split
+    _b = str(spec.get('big', '') or icon)
+    bigsz = 150 if len(_b) <= 5 else (104 if len(_b) <= 8 else 84)
+    sitems = ''.join(f'<li>{html.escape(t)}</li>' for t in spec.get('items', [])[:4])
     body = f"""<style>{base_css}
 body{{background:{lt};color:{dk}}}
 .left{{position:absolute;left:0;top:0;bottom:0;width:430px;background:linear-gradient(180deg,{md},{dk});color:#fff;padding:90px 50px;display:flex;flex-direction:column;justify-content:center}}
-.big{{font-size:150px;font-weight:800;line-height:1.05;color:{ac};word-break:break-word}}
+.big{{font-size:{bigsz}px;font-weight:800;line-height:1.15;color:{ac}}}
 .bl{{font-size:36px;font-weight:700;margin-top:24px;line-height:1.4}}
 .right{{position:absolute;left:490px;right:64px;top:110px}}
 h1{{font-size:72px;line-height:1.3;font-weight:800;margin:40px 0 0}}
 h1 span{{color:{md};display:block}}
 p{{font-size:38px;line-height:1.6;margin:40px 0 0;color:#374151}}
+ul{{margin:36px 0 0;padding:0;list-style:none}}
+ul li{{font-size:32px;font-weight:700;line-height:1.45;padding:16px 0 16px 46px;position:relative;border-top:2px solid rgba(0,0,0,.07)}}
+ul li:before{{content:'';position:absolute;left:4px;top:30px;width:20px;height:20px;border-radius:6px;background:{ac}}}
 .brand{{left:490px}}
 </style><div class="left"><div class="big">{e('big') or html.escape(icon)}</div><div class="bl">{e('big_label')}</div></div>
-<div class="right"><div class="pill">{e('tag')}</div><h1>{e('title')}<span>{e('highlight')}</span></h1><p>{e('sub')}</p></div>{brand(dk)}"""
+<div class="right"><div class="pill">{e('tag')}</div><h1>{e('title')}<span>{e('highlight')}</span></h1><p>{e('sub')}</p><ul>{sitems}</ul></div>{brand(dk)}"""
 
 page = f'<html><head><meta charset="utf-8"></head><body>{body}</body></html>'
 d = tempfile.mkdtemp(); h = os.path.join(d, "p.html"); png = os.path.join(d, "p.png")
