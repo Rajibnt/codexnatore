@@ -20,7 +20,7 @@ spec.json keys (all text in Bangla unless a name/brand):
   specs     : list of [label, value] rows (stat layout; up to 5)
   date      : date text for news layout, e.g. "১৭ নভেম্বর ২০২৬"
   source    : source line, e.g. "সূত্র: প্রথম আলো"
-  (spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
+  (score layout: matches=[{label,status,rows:[[team,score],[team,score]],note}] up to 3; spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
 """
 import json, sys, os, subprocess, shutil, html, tempfile
 from PIL import Image
@@ -139,6 +139,31 @@ p{{font-size:40px;line-height:1.6;color:#374151;margin:44px 0 0;border-left:10px
 </style><div class="band"><div class="pill">{e('tag')}</div><div class="date">{e('date')}</div></div><div class="stripe"></div>
 <div class="blk"></div><div class="wrap"><h1>{e('title')} <span>{e('highlight')}</span></h1><p>{e('sub')}</p></div>{('<div class="facts">' + facts + '</div>') if facts else ''}
 <div class="src">{e('source')}</div>{brand(dk)}"""
+
+elif layout == "score":
+    # spec["matches"] = [{"label": str, "status": str, "rows": [[team, score], [team, score]], "note": str}]
+    def _m(m):
+        rows = "".join(f'<div class="r"><span>{html.escape(t)}</span><b>{html.escape(sc)}</b></div>' for t, sc in m.get("rows", [])[:2])
+        return (f'<div class="m"><div class="mh"><span>{html.escape(m.get("label",""))}</span>'
+                f'<em>{html.escape(m.get("status",""))}</em></div>{rows}'
+                + (f'<div class="n">{html.escape(m["note"])}</div>' if m.get("note") else '') + '</div>')
+    cards = "".join(_m(m) for m in spec.get("matches", [])[:3])
+    body = f"""<style>{base_css}
+body{{background:linear-gradient(170deg,{dk} 0%,{md} 100%);color:#fff}}
+.top{{padding:60px 72px 0}}
+h1{{font-size:62px;line-height:1.25;font-weight:800;margin:26px 0 0}}
+h1 span{{color:{ac}}}
+.ms{{margin:32px 72px 0;display:flex;flex-direction:column;gap:18px}}
+.m{{background:#fff;color:{dk};border-radius:28px;padding:18px 32px;box-shadow:0 10px 0 rgba(0,0,0,.15)}}
+.mh{{display:flex;justify-content:space-between;align-items:center;font-size:26px;font-weight:700;color:{md};margin-bottom:8px}}
+.mh em{{font-style:normal;background:{ac};color:{dk};border-radius:30px;padding:4px 18px;font-size:24px}}
+.r{{display:flex;justify-content:space-between;align-items:center;font-size:36px;font-weight:800;padding:4px 0}}
+.r+.r{{border-top:2px solid rgba(0,0,0,.08)}}
+.r b{{font-size:40px}}
+.n{{font-size:26px;font-weight:600;color:#4b5563;margin-top:8px;line-height:1.4}}
+.src{{position:absolute;left:72px;bottom:126px;font-size:24px;font-weight:600;opacity:.75}}
+</style><div class="top"><div class="pill">{e('tag')}</div><h1>{e('title')} <span>{e('highlight')}</span></h1></div>
+<div class="ms">{cards}</div>{('<div class="src">' + e('source') + '</div>') if spec.get('source') else ''}{brand()}"""
 
 elif layout == "stat":
     rows = "".join(f'<tr><td>{html.escape(str(k))}</td><td>{html.escape(str(v))}</td></tr>' for k, v in spec.get("specs", [])[:5])
