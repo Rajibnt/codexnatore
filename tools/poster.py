@@ -176,8 +176,8 @@ h1{{font-size:68px;line-height:1.3;font-weight:800;margin:34px 0 0}}
 .bl{{font-size:34px;font-weight:700;opacity:.9;margin-top:6px}}
 table{{margin:36px 72px 0;width:calc(100% - 144px);border-collapse:separate;border-spacing:0 14px;font-size:34px}}
 td{{background:#fff;padding:20px 28px;font-weight:700}}
-td:first-child{{border-radius:18px 0 0 18px;color:{md};width:68%}}
-td:last-child{{border-radius:0 18px 18px 0;text-align:right;font-size:40px;font-weight:800}}
+td:first-child{{border-radius:18px 0 0 18px;color:{md};width:34%}}
+td:last-child{{border-radius:0 18px 18px 0;text-align:right;font-size:40px;font-weight:800;white-space:nowrap}}
 h1 em{{font-style:normal;color:{md}}}
 .src{{position:absolute;left:72px;bottom:150px;font-size:26px;font-weight:600;opacity:.7}}
 </style><div class="top"><div class="pill">{e('tag')}</div><h1>{e('title')}{(' <em>' + e('highlight') + '</em>') if spec.get('highlight') else ''}</h1></div>
