@@ -20,7 +20,7 @@ spec.json keys (all text in Bangla unless a name/brand):
   specs     : list of [label, value] rows (stat layout; up to 5)
   date      : date text for news layout, e.g. "১৭ নভেম্বর ২০২৬"
   source    : source line, e.g. "সূত্র: প্রথম আলো"
-  (score layout: matches=[{label,status,rows:[[team,score],[team,score]],note}] up to 3; spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
+  (forecast layout: days=[{day,date,icon,cond,hi,lo,rain}] x3 + items advice; score layout: matches=[{label,status,rows:[[team,score],[team,score]],note}] up to 3; spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
 """
 import json, sys, os, subprocess, shutil, html, tempfile
 from PIL import Image
@@ -139,6 +139,36 @@ p{{font-size:40px;line-height:1.6;color:#374151;margin:44px 0 0;border-left:10px
 </style><div class="band"><div class="pill">{e('tag')}</div><div class="date">{e('date')}</div></div><div class="stripe"></div>
 <div class="blk"></div><div class="wrap"><h1>{e('title')} <span>{e('highlight')}</span></h1><p>{e('sub')}</p></div>{('<div class="facts">' + facts + '</div>') if facts else ''}
 <div class="src">{e('source')}</div>{brand(dk)}"""
+
+elif layout == "forecast":
+    # spec["days"] = [{"day","date","icon","cond","hi","lo","rain"}] up to 3; spec["items"] = advice lines (<=3)
+    dcards = "".join(
+        f'<div class="d"><div class="dn">{html.escape(d.get("day",""))}</div><div class="dd">{html.escape(d.get("date",""))}</div>'
+        f'<div class="ic">{html.escape(d.get("icon",""))}</div><div class="cd">{html.escape(d.get("cond",""))}</div>'
+        f'<div class="tp"><b>{html.escape(d.get("hi",""))}</b><span>{html.escape(d.get("lo",""))}</span></div>'
+        f'<div class="rn">💧 {html.escape(d.get("rain",""))}</div></div>' for d in spec.get("days", [])[:3])
+    adv = "".join(f'<li>{html.escape(x)}</li>' for x in spec.get("items", [])[:4])
+    body = f"""<style>{base_css}
+body{{background:linear-gradient(165deg,{dk} 0%,{md} 100%);color:#fff}}
+.top{{padding:64px 72px 0}}
+h1{{font-size:62px;line-height:1.25;font-weight:800;margin:26px 0 0}}
+h1 span{{color:{ac}}}
+.sub{{font-size:30px;opacity:.85;margin-top:10px;font-weight:600}}
+.ds{{margin:36px 72px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}}
+.d{{background:#fff;color:{dk};border-radius:28px;padding:26px 16px;text-align:center}}
+.dn{{font-size:34px;font-weight:800}}
+.dd{{font-size:24px;color:#6b7280;font-weight:600}}
+.ic{{font-size:84px;line-height:1.2;margin:10px 0 2px}}
+.cd{{font-size:28px;font-weight:700;color:{md};min-height:76px;line-height:1.3}}
+.tp b{{font-size:56px;font-weight:800}}
+.tp span{{font-size:34px;color:#6b7280;font-weight:700;margin-left:8px}}
+.rn{{margin-top:8px;font-size:28px;font-weight:700;background:rgba(0,0,0,.05);border-radius:20px;padding:6px 0}}
+.adv{{margin:30px 72px 0;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.2);border-radius:24px;padding:20px 30px}}
+.adv{{list-style:none}}
+.adv li{{font-size:29px;font-weight:600;line-height:1.5;margin:6px 0}}
+.src{{position:absolute;left:72px;bottom:126px;font-size:24px;font-weight:600;opacity:.75}}
+</style><div class="top"><div class="pill">{e('tag')}</div><h1>{e('title')} <span>{e('highlight')}</span></h1><div class="sub">{e('sub')}</div></div>
+<div class="ds">{dcards}</div>{('<ul class="adv">' + adv + '</ul>') if adv else ''}{('<div class="src">' + e('source') + '</div>') if spec.get('source') else ''}{brand()}"""
 
 elif layout == "score":
     # spec["matches"] = [{"label": str, "status": str, "rows": [[team, score], [team, score]], "note": str}]
