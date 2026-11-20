@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>আমার নাটোর — রেডি পোস্ট</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f4f1;--card:#fff;--ink:#16201b;--mute:#5d6a63;--brand:#0f7a4a;--brand2:#0b5d38;--line:#dfe5e1}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1512;--card:#18211c;--ink:#e8efe9;--mute:#9aa9a0;--line:#26322b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans Bengali",system-ui,sans-serif}
+header{background:var(--brand);color:#fff;padding:18px 16px 16px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:21px;font-weight:800}
+header p{margin:2px 0 0;font-size:13px;opacity:.85}
+main{max-width:560px;margin:0 auto;padding:14px 12px 80px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:18px}
+.card.done{opacity:.6}
+.meta{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-size:13px;color:var(--mute)}
+.tag{background:var(--brand);color:#fff;border-radius:99px;padding:2px 10px;font-size:12px}
+.new{background:#e8442e}
+img{display:block;width:100%;height:auto;background:#ddd}
+.cap{white-space:pre-wrap;padding:12px 14px 4px;font-size:15px;max-height:9.6em;overflow:hidden;position:relative}
+.cap.open{max-height:none}
+.more{background:none;border:0;color:var(--brand);font:600 14px inherit;font-family:inherit;padding:0 14px 8px;cursor:pointer}
+.acts{display:grid;gap:8px;padding:8px 14px 14px}
+button.b{font-family:inherit;font-size:16px;font-weight:600;min-height:48px;border-radius:12px;border:1.5px solid var(--brand);background:transparent;color:var(--brand);cursor:pointer}
+button.main{background:var(--brand);color:#fff;font-size:18px;min-height:56px}
+button.main:active{background:var(--brand2)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.help{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:12px 14px;font-size:14px;color:var(--mute);margin-bottom:16px}
+.help b{color:var(--ink)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#16201b;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;max-width:92vw;display:none;z-index:9;text-align:center}
+.empty{text-align:center;color:var(--mute);padding:40px 0}
+</style>
+</head>
+<body>
+<header><h1>আমার নাটোর — রেডি পোস্ট</h1><p>প্রোফাইলে শেয়ারের জন্য প্রস্তুত পোস্ট (নতুনগুলো উপরে)</p></header>
+<main>
+<div class="help"><b>কীভাবে পোস্ট করবেন:</b> সবুজ বাটনে এক ট্যাপ দিন, তাহলে ক্যাপশন কপি হবে আর শেয়ার মেনু খুলবে → <b>Facebook</b> বেছে নিন (ছবি নিজে থেকেই যুক্ত হবে) → লেখার ঘরে লং-প্রেস করে <b>Paste</b> দিন → <b>Post</b>।</div>
+<div id="list"><div class="empty">লোড হচ্ছে…</div></div>
+</main>
+<div id="toast"></div>
+<script>
+{
+const list=document.getElementById('list'),toast=document.getElementById('toast');
+const files={};let feed=[];
+const done=()=>{try{return JSON.parse(localStorage.getItem('done')||'[]')}catch(e){return[]}};
+const setDone=id=>{try{const d=done();if(!d.includes(id))d.push(id);localStorage.setItem('done',JSON.stringify(d.slice(-200)))}catch(e){}};
+const say=(m,ms=3500)=>{toast.textContent=m;toast.style.display='block';clearTimeout(say.t);say.t=setTimeout(()=>toast.style.display='none',ms)};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function copy(t){
+  try{await navigator.clipboard.writeText(t);return true}catch(e){}
+  const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}ta.remove();return ok;
+}
+async function getFile(p){
+  if(files[p.id])return files[p.id];
+  const r=await fetch(p.image);const b=await r.blob();
+  return files[p.id]=new File([b],'amar-natore-'+p.id+'.jpg',{type:b.type||'image/jpeg'});
+}
+async function share(p){
+  let f;try{f=files[p.id]||await getFile(p)}catch(e){}
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){
+    try{await navigator.share({files:[f]});return true}catch(e){if(e.name==='AbortError')return false}
+  }
+  window.open(p.image,'_blank');say('ছবিটি খুলেছে — লং-প্রেস করে Share/Save করুন',5000);return false;
+}
+function render(){
+  const d=done();
+  if(!feed.length){list.innerHTML='<div class="empty">এখনও কোনো পোস্ট নেই</div>';return}
+  list.innerHTML=feed.map((p,i)=>`<article class="card${d.includes(p.id)?' done':''}" id="c${i}">
+   <div class="meta"><span>${esc(p.time)} · ${esc(p.title)}</span>${d.includes(p.id)?'<span class="tag">✓ পোস্ট করা</span>':(i===0?'<span class="tag new">নতুন</span>':'')}</div>
+   <img src="${esc(p.image)}" alt="${esc(p.title)}" loading="${i<2?'eager':'lazy'}">
+   <div class="cap" id="t${i}">${esc(p.caption)}</div>
+   <button class="more" data-m="${i}">পুরো ক্যাপশন দেখুন ▾</button>
+   <div class="acts">
+    <button class="b main" data-a="all" data-i="${i}">📋 কপি + 📤 Facebook-এ শেয়ার</button>
+    <div class="row"><button class="b" data-a="copy" data-i="${i}">শুধু ক্যাপশন কপি</button><button class="b" data-a="share" data-i="${i}">শুধু ছবি শেয়ার</button></div>
+    <button class="b" data-a="done" data-i="${i}">✓ পোস্ট করেছি</button>
+   </div></article>`).join('');
+  feed.slice(0,3).forEach(p=>getFile(p).catch(()=>{}));
+}
+list.addEventListener('click',async e=>{
+  const m=e.target.closest('[data-m]');
+  if(m){const t=document.getElementById('t'+m.dataset.m);t.classList.toggle('open');m.textContent=t.classList.contains('open')?'ছোট করুন ▴':'পুরো ক্যাপশন দেখুন ▾';return}
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const p=feed[+b.dataset.i],a=b.dataset.a;
+  if(a==='copy'){say(await copy(p.caption)?'✅ ক্যাপশন কপি হয়েছে':'কপি হয়নি — ক্যাপশন লং-প্রেস করে কপি করুন')}
+  else if(a==='share'){await share(p)}
+  else if(a==='all'){
+    const ok=await copy(p.caption);
+    say(ok?'✅ ক্যাপশন কপি হয়েছে — Facebook-এ লেখার ঘরে লং-প্রেস করে Paste দিন':'ক্যাপশন কপি হয়নি — পরে "শুধু ক্যাপশন কপি" চাপুন',6000);
+    await share(p);
+  }
+  else if(a==='done'){setDone(p.id);render();say('ঠিক আছে, পোস্ট করা হিসেবে চিহ্নিত')}
+});
+fetch('feed.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>{feed=j;render();
+  const id=location.hash.slice(1);if(id){const i=feed.findIndex(p=>p.id===id);if(i>=0)document.getElementById('c'+i).scrollIntoView()}})
+ .catch(()=>{list.innerHTML='<div class="empty">লোড করা যায়নি — একটু পরে আবার খুলুন</div>'});
+}
+</script>
+</body>
+</html>
