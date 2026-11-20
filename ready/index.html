@@ -96,7 +96,9 @@ list.addEventListener('click',async e=>{
   }
   else if(a==='done'){setDone(p.id);render();say('ঠিক আছে, পোস্ট করা হিসেবে চিহ্নিত')}
 });
-fetch('feed.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json()).then(j=>{feed=j;render();
+const API='https://api.github.com/repos/Rajibnt/codexnatore/contents/ready/feed.json?ref=fb-posts&t='+Date.now();
+fetch(API,{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}}).then(r=>{if(!r.ok)throw 0;return r.json()})
+ .catch(()=>fetch('feed.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.json())).then(j=>{feed=j;render();
   const id=location.hash.slice(1);if(id){const i=feed.findIndex(p=>p.id===id);if(i>=0)document.getElementById('c'+i).scrollIntoView()}})
  .catch(()=>{list.innerHTML='<div class="empty">লোড করা যায়নি — একটু পরে আবার খুলুন</div>'});
 }
