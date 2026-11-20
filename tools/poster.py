@@ -20,7 +20,7 @@ spec.json keys (all text in Bangla unless a name/brand):
   specs     : list of [label, value] rows (stat layout; up to 5)
   date      : date text for news layout, e.g. "১৭ নভেম্বর ২০২৬"
   source    : source line, e.g. "সূত্র: প্রথম আলো"
-  (forecast layout: days=[{day,date,icon,cond,hi,lo,rain}] x3 + items advice; score layout: matches=[{label,status,rows:[[team,score],[team,score]],note}] up to 3; spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
+  (quote layout accepts optional ayah + ayah_ref box; forecast layout: days=[{day,date,icon,cond,hi,lo,rain}] x3 + items advice; score layout: matches=[{label,status,rows:[[team,score],[team,score]],note}] up to 3; spotlight layout accepts items = up to 4 short tips (<= 26 chars) shown as cards; news layout also accepts items = 2-4 key facts, shown in a fact box; split layout accepts items as bullets)
 """
 import json, sys, os, subprocess, shutil, html, tempfile
 from PIL import Image
@@ -116,8 +116,12 @@ blockquote{{margin:30px 0 0;font-size:56px;line-height:1.6;font-weight:700}}
 .orn{{width:180px;height:4px;background:{ac};margin:46px auto 0;border-radius:4px}}
 .top{{position:absolute;top:100px;left:0;right:0;text-align:center}}
 .brand{{left:96px;right:96px;bottom:86px}}
+.ay{{margin:40px auto 0;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.22);border-radius:26px;padding:24px 30px}}
+.ay .t{{font-size:26px;font-weight:800;color:{ac};margin-bottom:8px}}
+.ay p{{margin:0;font-size:34px;line-height:1.5;font-weight:600}}
+.ay .r{{margin-top:8px;font-size:26px;opacity:.85;font-weight:700}}
 </style><div class="frame"></div><div class="top"><div class="pill">{e('tag')}</div></div>
-<div class="wrap" style="top:330px"><div class="q">“</div><blockquote>{e('quote')}</blockquote><div class="orn"></div><div class="ref">{e('ref')}</div></div>{brand()}"""
+<div class="wrap" style="top:{'220' if spec.get('ayah') else '330'}px"><div class="q">“</div><blockquote{' style="font-size:50px"' if spec.get('ayah') else ''}>{e('quote')}</blockquote><div class="orn"></div><div class="ref">{e('ref')}</div>{('<div class="ay"><div class="t">📖 কুরআনের আলোকে</div><p>' + e('ayah') + '</p><div class="r">' + e('ayah_ref') + '</div></div>') if spec.get('ayah') else ''}</div>{brand()}"""
 
 elif layout == "news":
     facts = "".join(f'<div class="f"><i></i><span>{html.escape(t)}</span></div>' for t in spec.get("items", [])[:4])
