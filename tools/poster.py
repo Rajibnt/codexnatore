@@ -45,6 +45,20 @@ CAT = {
  "computer":    ("কম্পিউটার স্কিল", "#0c2d48", "#0284c7", "#67e8f9", "#eef7fc", "⌘"),
  "english":     ("English",      "#4a0e1c", "#9f1239", "#fde68a", "#fdf4f0", "Aa"),
  "branding":    ("পার্সোনাল ব্র্যান্ড", "#0a0a0a", "#3f3f46", "#eab308", "#f6f5f0", "◆"),
+ "market":      ("বাজারদর",        "#3b2a05", "#b7791f", "#fde047", "#fdf8ec", "৳"),
+ "govt_service":("সরকারি সেবা",    "#0b3a2a", "#047857", "#fbbf24", "#eefaf4", "▤"),
+ "scam_alert":  ("সতর্কতা",        "#450a0a", "#dc2626", "#fde047", "#fef2f2", "!"),
+ "exam":        ("শিক্ষা",          "#172554", "#4f46e5", "#fcd34d", "#f0f1ff", "✎"),
+ "freelancing": ("ফ্রিল্যান্সিং",     "#042f2e", "#0d9488", "#fde68a", "#effaf8", "⌂"),
+ "heritage":    ("নাটোরের ঐতিহ্য",  "#3b1d0e", "#9a3412", "#fcd34d", "#fbf4ec", "♜"),
+ "finance":     ("অর্থ ও ব্যাংকিং",   "#0f2a1d", "#15803d", "#facc15", "#f0f9f3", "৳"),
+ "agri":        ("কৃষি",            "#1a2e05", "#4d7c0f", "#fde047", "#f4f9ec", "❦"),
+ "success_story":("সাফল্যের গল্প",   "#3f1d38", "#a21caf", "#fde68a", "#fbf0fa", "✦"),
+ "day_history": ("দিবস ও ইতিহাস",   "#1e1b4b", "#7c3aed", "#fcd34d", "#f4f1ff", "◷"),
+ "parenting":   ("পরিবার ও শিশু",    "#3b0a2a", "#db2777", "#fde68a", "#fdf2f8", "♥"),
+ "quiz":        ("কুইজ",            "#082f49", "#0369a1", "#fde047", "#eef7fd", "?"),
+ "morning":     ("সুপ্রভাত নাটোর",    "#0f3d3e", "#14746f", "#f4c95d", "#eef7f6", "☀"),
+ "weather":     ("আবহাওয়া",         "#0f3d3e", "#14746f", "#f4c95d", "#eef7f6", "☁"),
 }
 lab, dk, md, ac, lt, icon = CAT.get(spec.get("category", "ai"), CAT["ai"])
 e = lambda k: html.escape(str(spec.get(k, "") or ""))
