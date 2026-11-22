@@ -103,3 +103,4 @@ dhaka_datetime,category,topic,source_url,image,layout
 2026-11-22 20:10,recipe,"NOT PUBLISHED again (Facebook account needs login/checkpoint at facebook.com; Zapier error): Italian Aglio e Olio garlic pasta retry",evergreen,posts/2026-11-22-1910.jpg,spotlight
 2026-11-22 21:10,recipe,"NOT PUBLISHED 3rd time (Facebook account still blocked: Zapier says log in to facebook.com and follow instructions); no new post prepared",evergreen,none,none
 2026-11-22 22:05,recipe,"NOT PUBLISHED 4th time (Facebook account still blocked: Zapier page lookup says log in to facebook.com and follow the instructions); no new post prepared",evergreen,none,none
+2026-11-22 23:06,recipe,"NOT PUBLISHED 5th time (Zapier Facebook token invalidated: session changed due to password change/security; reconnect Facebook in Zapier); no new post prepared",evergreen,none,none
